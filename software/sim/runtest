@@ -1,0 +1,4 @@
+#!/bin/bash
+
+#run test
+python GridSimTest.py
