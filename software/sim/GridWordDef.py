@@ -131,7 +131,11 @@ class GridWordDef:
           return tmparr
 
       def _min_num_conv(self,mins_int):
-          minstr = str(mins_int)
+          if mins_int < 10:
+              minstr = '0' + str(mins_int)
+          else:
+              minstr = str(mins_int)
+
           if minstr[0:1] == '0':
               return self.min_first_dec[mins_int]
           elif minstr[0:1] == '1':
@@ -139,7 +143,7 @@ class GridWordDef:
           elif minstr[0:1] == '2':
               return self.min_third_dec[mins_int-20]
           else:
-              print "PANIC PANIC PANIC PANIC PANIC!"
+              print " GridWordDef.py:_min_num_conv:PANIC PANIC PANIC PANIC PANIC!"
 
       def hour_str_conv(self,hour_str):
           hours = int(hour_str)
