@@ -107,7 +107,7 @@ class GridWordDef:
           mins = int(min_str)
           if mins == 0:
               pass
-          if mins == 30:
+          elif mins == 30:
              tmparr= tmparr + self.half + self.past
           elif mins > 30:
              mins = 60 - mins #MINS TOO

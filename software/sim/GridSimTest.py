@@ -12,7 +12,7 @@ def printclock():
     while 1 :
         #GET TIME
         #timestr = datetime.datetime.now().strftime('%I%M%p') #'HHMM(PM/AM)'
-        timestr = '0145Pm' #debug timestr
+        timestr = '0100Pm' #debug timestr
         if oldtimestr != timestr:
             gis.cleardisplay()
         #print timestr[4:6]
