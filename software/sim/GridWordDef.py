@@ -123,7 +123,9 @@ class GridWordDef:
           else:
              ret = self._min_num_conv(mins)
              tmparr = tmparr + ret
-             if mins == 1:
+             if mins == 15:
+                 pass
+             elif mins == 1:
                  tmparr = tmparr + self.minute
              else:
                  tmparr = tmparr + self.minutes
