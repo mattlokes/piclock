@@ -43,6 +43,8 @@ class GridInterface_Sim:
 
     #Clear Display (cd)
     def cleardisplay(self):
+        msg = {'mtype':'cd'}
+        self.queue.put(msg)
         pass
 
     #Get Light Value (glv)

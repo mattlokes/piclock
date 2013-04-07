@@ -18,7 +18,8 @@ import random
 import Queue
 
 class GridGui(threading.Thread):
-    
+   
+    OFF_COLOR = 'grey15' 
     grid_x = 0
     grid_y = 0
     grid_pad = 0
@@ -86,7 +87,7 @@ class GridGui(threading.Thread):
 		   i >= (self.grid_y+self.grid_pad):
 		    self.e = Label(bg="black",fg="white", text="   ", font=("Arial",14))
 		else:
-		    self.e = Label(bg="black",fg="grey15", text=conf_lines[i-self.grid_pad][j-self.grid_pad]+"  ", font=("Arial",14))
+		    self.e = Label(bg="black",fg=self.OFF_COLOR, text=conf_lines[i-self.grid_pad][j-self.grid_pad]+"  ", font=("Arial",14))
 		self.e.grid(row=i, column=j, sticky=NSEW)
 		self.cols.append(self.e)
 	    self.rows.append(self.cols)
@@ -107,7 +108,7 @@ class GridGui(threading.Thread):
                     #RESET SINGLE LETTER
                     tmpx = msg["x"]+self.grid_pad
                     tmpy = msg["y"]+self.grid_pad
-                    self.rows[tmpx][tmpy]["fg"] = "grey15"
+                    self.rows[tmpx][tmpy]["fg"] = self.OFF_COLOR
                     self.root.update()
                 elif msg["mtype"] == "dl":
                     #DRAW LINE OF LETTERS
@@ -123,8 +124,12 @@ class GridGui(threading.Thread):
                     pass
                 elif msg["mtype"] == "cd":
                     #CLEAR ENTIRE DISPLAY
-                    # TODO
-                    pass
+                    for i in range(self.grid_y):
+                        for j in range(self.grid_x):
+                            tmpx = i+self.grid_pad
+                            tmpy = j+self.grid_pad
+                            self.rows[tmpx][tmpy]["fg"] = self.OFF_COLOR
+                    self.root.update()
                 elif msg["mtype"] == "glv":
                     #GET LIGHT VALUE
                     # TODO
