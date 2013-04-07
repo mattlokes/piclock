@@ -18,17 +18,17 @@ class GridWordDef:
       #MIN (SEVEN)
       min_seven = [[11,3],[12,3],[13,3],[14,3],[15,3]]
       #MIN (EIGHT)
-      min_eight = [[0,4],[1,4],[2,4],[3,4],[4,4]]
+      min_eight = [[1,4],[2,4],[3,4],[4,4],[5,4]]
       #MIN (EIGH)
-      min_eigh = [[0,4],[1,4],[2,4],[3,4]]
+      min_eigh = [[1,4],[2,4],[3,4],[4,4]]
       #MIN (NINE)
       min_nine = [[7,4],[8,4],[9,4],[10,4]]
       #MIN (TEN)
       min_ten = [[12,4],[13,4],[14,4]]
       #MIN (ELEVEN)
       min_eleven = [[10,5],[11,5],[12,5],[13,5],[14,5],[15,5]]
-      #MIN (TWELEVE)
-      min_tweleve = [[0,6],[1,6],[2,6],[3,6],[4,6],[5,6]]
+      #MIN (TWELVE)
+      min_twelve = [[0,6],[1,6],[2,6],[3,6],[4,6],[5,6]]
       #MIN (THIR)
       min_thir = [[1,5],[2,5],[3,5],[4,5]]
       #MIN (TEEN)
@@ -70,8 +70,8 @@ class GridWordDef:
       hour_ten = [[11,10],[12,10],[13,10]]
       #HOUR (ELEVEN)
       hour_eleven = [[4,8],[5,8],[6,8],[7,8],[8,8],[9,8]]
-      #HOUR (TWELEVE)
-      hour_tweleve = [[5,11],[6,11],[7,11],[8,11],[9,11],[10,11],[11,11]]
+      #HOUR (TWELVE)
+      hour_twelve = [[5,11],[6,11],[7,11],[8,11],[9,11],[10,11]]
       #----------------------------------------------------------
       #IN THE
       in_the = [[12,11],[13,11],[0,12],[1,12],[2,12]]
@@ -154,7 +154,7 @@ class GridWordDef:
       min_first_dec = [0,min_one,min_two,min_three,min_four,min_five,min_six,\
                        min_seven,min_eight,min_nine]
 
-      min_sec_dec   = [min_ten,min_eleven,min_tweleve,min_thir+min_teen,\
+      min_sec_dec   = [min_ten,min_eleven,min_twelve,min_thir+min_teen,\
                        min_four+min_teen,quarter,min_six+min_teen,\
                        min_seven+min_teen,min_eigh+min_teen,min_nine+min_teen]
 
@@ -164,14 +164,14 @@ class GridWordDef:
                        min_twenty+min_seven,min_twenty+min_eight,\
                        min_twenty+min_nine]
       hour_arr = [0,hour_one,hour_two,hour_three,hour_four,hour_five,hour_six,\
-                       hour_seven,hour_eight,hour_nine,hour_ten,hour_eleven,hour_tweleve]
+                       hour_seven,hour_eight,hour_nine,hour_ten,hour_eleven,hour_twelve]
       ###############################################
       # Test Iterator
       iterator = [the_time_is,min_one,min_two,min_three,min_four,min_five,\
                   min_six,min_seven,min_eight,min_nine,min_ten,min_eleven,\
-                  min_tweleve,min_thir,min_teen,quarter,min_twenty,half,\
+                  min_twelve,min_thir,min_teen,quarter,min_twenty,half,\
                   minutes,minute,past,too,hour_one,hour_two,hour_three,\
                   hour_four,hour_five,hour_six,hour_seven,hour_eight,\
-                  hour_nine,hour_ten,hour_eleven,hour_tweleve,in_the,at,\
+                  hour_nine,hour_ten,hour_eleven,hour_twelve,in_the,at,\
                   morning,afternoon,evening,night]
 
