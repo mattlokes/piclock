@@ -2,28 +2,20 @@
 #include "stm32f10x_tim.h"
 #include "spi.h"
 
-//PC8 - DEBUGLED0
-#define DEBUGLED0 8
-//PC9 - DEBUGLED1
-#define DEBUGLED1 9
+// ------- DEFINES -------------------
+#define DEBUGLED0 8 //PC8 - DEBUGLED0
+#define DEBUGLED1 9 //PC9 - DEBUGLED1
 
-//PA0 - VPRG      - OUT
-#define VPRG 0
-//PA1 - XLAT      - OUT
-#define XLAT 1
-//PA2 - BLANK     - OUT
-#define BLANK 2
-//PA3 - DCPRG     - OUT
-#define DCPRG 3
-//PB0 - GSCK      - OUT
-#define GSCK 0
-//PA5 - SPI1_SCK  - OUT
-#define SPI1_SCK 5
-//PA6 - SPI1_MISO - OUT
-#define SPI1_MISO 6
-//PA7 - SPI1_MOSI - IN
-#define SPI1_MOSI 7
+#define VPRG 0      //PA0 OUT
+#define XLAT 1      //PA1 OUT
+#define BLANK 2     //PA2 OUT
+#define DCPRG 3     //PA3 OUT
+#define GSCK 0      //PB0 OUT
+#define SPI1_SCK 5  //PA5 OUT
+#define SPI1_MISO 6 //PA6 OUT
+#define SPI1_MOSI 7 //PA7 IN
 
+//------------ MACROS ------------------
 #define CRH_MODE(M,N)   (M<<(4*(N-8)))
 #define CRL_MODE(M,N)   (M<<(4*(N)))
 #define CRH_MODE_OUT(N) (CRH_MODE(3,N))
@@ -32,12 +24,10 @@
 #define OUT_ON(P,N)     P->BSRR = (1<<N);
 #define OUT_OFF(P,N)    P->BRR = (1<<N);
 #define OUT_FLIP(P,N)   P->ODR ^= (1<<N);
+//---------------------------------------
 
-//Quick hack, approximately 1ms delay
-volatile uint8_t row0[24];
-volatile uint8_t row1[24];
-volatile uint8_t row2[24];
-volatile uint8_t row3[24];
+//  Declare Frame Buffer
+volatile uint8_t framebuff[4][24];
 
 void assert_failed(uint8_t* file, uint32_t line)
 {
@@ -67,8 +57,8 @@ void rcc_init(void)
   RCC->APB2ENR |= RCC_APB2ENR_IOPCEN; //GPIOC
   RCC->APB2ENR |= RCC_APB2ENR_IOPAEN; //GPIOA
   RCC->APB2ENR |= RCC_APB2ENR_IOPBEN; //GPIOB (TIM)
-  RCC->APB1ENR |= RCC_APB1ENR_TIM3EN; //Enable TIM3_CH3 (PB0)
-  RCC->APB2ENR |= RCC_APB2ENR_AFIOEN;
+  RCC->APB1ENR |= RCC_APB1ENR_TIM3EN; //TIM3 (PB0)
+  RCC->APB2ENR |= RCC_APB2ENR_AFIOEN; //Alternate Function
   RCC->APB2ENR |= RCC_APB2ENR_SPI1EN; //SPI1
 }
 
@@ -144,17 +134,61 @@ void tlc5940_init(void)
 
 void fb_init(void)
 {
- int i = 0;
- //for(i=0;i<sizeof(row0);i++)
- for(i=0;i<4;i++)
- {
-   row0[6*i] = 0x44; // Initializing each element seperately
-   row0[(6*i)+1] = 0x00; // Initializing each element seperately
-   row0[(6*i)+2] = 0x60; // Initializing each element seperately
-   row0[(6*i)+3] = 0x00; // Initializing each element seperately
-   row0[(6*i)+4] = 0x70; // Initializing each element seperately
-   row0[(6*i)+5] = 0x00; // Initializing each element seperately
+ int i,j;
+ for(i = 0; i<4; i++)
+   for(j = 0; j<24; j++)
+     framebuff[i][j] = 0x00;
  }
+
+void set_pixel(uint8_t x, uint8_t y, uint8_t r, uint8_t g, uint8_t b)
+{
+//Algorithm/*{{{*/
+/*
+Use Offset of 6 bytes which are currently unused
+
+0: 0,1,2,3           RR GH GH BB
+1: 4,5,6,7,8         HR HR GG HB HB
+2: 9,10,11,12        RR GH GH BB
+3: 13,14,15,16,17    HR HR GG HB HB
+4: 18,19,20,21       RR GH GH BB
+5: 22,23,24,25,26
+6: 27,28,29,30
+
+x=n even start=((n<<2)+(n>>1)) 
+               start= red
+               start+1 = green>>4
+               start+2 = green<<4
+               start+3 = blue
+
+x=n odd start = ((n<<2)+((n-1)>>1))
+              start = red>>4
+              start+1 = red<<4
+              start+2 = green
+              start+3 = blue>>4
+              start+4 = blue<<4
+*//*}}}*/
+  //r = b
+  //g = r
+  //b = g
+  uint8_t starti = 0;
+  x = 3-x;
+  if(x & 0x01) //Odd x
+  {
+    starti = ((x<<2)+((x-1)>>1))+6;
+    framebuff[y][starti] = b>>4;
+    framebuff[y][starti+1] = b<<4;
+    framebuff[y][starti+2] = r;
+    framebuff[y][starti+3] = g>>4;
+    framebuff[y][starti+4] = g<<4;
+  }
+  else //even x
+  {
+    starti = ((x<<2)+(x>>1))+6; 
+    framebuff[y][starti] = b;
+    framebuff[y][starti+1] = r>>4;
+    framebuff[y][starti+2] = r<<4;
+    framebuff[y][starti+3] = g;
+  }
 }
 
 void write_row(void)
@@ -163,8 +197,8 @@ void write_row(void)
   //TODO
   OUT_ON(GPIOA,BLANK);
   OUT_OFF(GPIOA,BLANK);
-  spiReadWrite(SPI1,row3,row0, sizeof(row0),SPI_SLOW);
-  us_delay(1);
+  spiReadWrite(SPI1,0,framebuff[0], sizeof(framebuff[0]),SPI_FAST);
+  //us_delay(1);
   OUT_ON(GPIOA,XLAT);
   OUT_OFF(GPIOA,XLAT);
 }
@@ -178,10 +212,27 @@ int main(void)
     ms_delay(5);
     tlc5940_init();
     //ms_delay(1);
-
+    //set_pixel(0,0,0x00,0xFF,0x00);
+    uint8_t i,j;
     for(;;)
     {
-      us_delay(2);
-      write_row();
+      for(i = 0; i< 0x3F; i++)
+      {
+        ms_delay(10);
+        set_pixel(0,0,i,0x00,0x00);
+        set_pixel(1,0,0x00,i,0x00);
+        set_pixel(2,0,0x00,0x00,i);
+        set_pixel(3,0,i,i,i);
+        write_row();
+      }
+      for(j = 0x3F; i > 0; i--)
+      {
+        ms_delay(10);
+        set_pixel(0,0,i,0x00,0x00);
+        set_pixel(1,0,0x00,i,0x00);
+        set_pixel(2,0,0x00,0x00,i);
+        set_pixel(3,0,i,i,i);
+        write_row();
+      }
     }
 }
