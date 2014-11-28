@@ -1,0 +1,393 @@
+import serial
+import array
+import time
+import datetime
+from threading import Thread
+from threading import Event
+import signal
+import sys
+
+##########################################################
+
+import sys
+import os
+import time
+import binascii
+
+#Create Frame and Intialize
+frame=[]
+BLANK=[0x00,0x00,0x00]
+RED=[0x00,0x00,0xFF]
+GREEN=[0x00,0xFF,0x00]
+BLUE=[0xFF,0x00,0x00]
+CYAN=[0xFF,0xFF,0x00]
+YELLOW=[0x00,0xFF,0xFF]
+MAGENTA=[0xFF,0x00,0xFF]
+WHITE=[0xFF,0xFF,0xFF]
+
+PRE_TIME =[
+      [{'x':1,'y':0,'len':3},{'x':7,'y':0,'len':4},{'x':13,'y':0,'len':2}], #The Time Is
+      [{'x':6,'y':0,'len':2},{'x':13,'y':0,'len':2}],  #It is
+      [{'x':9,'y':4,'len':1},{'x':9,'y':5,'len':1},{'x':9,'y':6,'len':1},{'x':9,'y':7,'len':1}]
+      #Matt
+         ]
+
+MIN_NUM =[
+         [{'x':0,'y':0,'len':0}], #0
+         [{'x':7,'y':3,'len':3}], #1
+         [{'x':12,'y':2,'len':3}], #2
+         [{'x':1,'y':3,'len':5}], #3
+         [{'x':6,'y':2,'len':4}], #4
+         [{'x':11,'y':1,'len':4}], #5
+         [{'x':0,'y':5,'len':3}], #6
+         [{'x':11,'y':3,'len':5}], #7
+         [{'x':0,'y':2,'len':5}], #8
+         [{'x':10,'y':4,'len':4}], #9
+         [{'x':7,'y':1,'len':3}], #10
+         [{'x':10,'y':5,'len':6}], #11
+         [{'x':3,'y':5,'len':6}], #12
+         [{'x':1,'y':6,'len':4},{'x':5,'y':6,'len':4}], #13
+         [{'x':6,'y':2,'len':4},{'x':5,'y':6,'len':4}], #14
+         [{'x':1,'y':4,'len':7}], #QUARTER
+         [{'x':0,'y':5,'len':3},{'x':5,'y':6,'len':4}], #16
+         [{'x':11,'y':3,'len':5},{'x':5,'y':6,'len':4}], #17
+         [{'x':0,'y':2,'len':4},{'x':5,'y':6,'len':4}], #18
+         [{'x':10,'y':4,'len':4},{'x':5,'y':6,'len':4}], #19
+         [{'x':0,'y':1,'len':6}], #20
+         [{'x':7,'y':3,'len':3},{'x':0,'y':1,'len':6}], #21
+         [{'x':12,'y':2,'len':3},{'x':0,'y':1,'len':6}], #22
+         [{'x':1,'y':3,'len':5},{'x':0,'y':1,'len':6}], #23
+         [{'x':6,'y':2,'len':4},{'x':0,'y':1,'len':6}], #24
+         [{'x':11,'y':1,'len':4},{'x':0,'y':1,'len':6}], #25
+         [{'x':0,'y':5,'len':3},{'x':0,'y':1,'len':6}], #26
+         [{'x':11,'y':3,'len':5},{'x':0,'y':1,'len':6}], #27
+         [{'x':0,'y':2,'len':5},{'x':0,'y':1,'len':6}], #28
+         [{'x':10,'y':4,'len':4},{'x':0,'y':1,'len':6}], #29
+         [{'x':10,'y':6,'len':4}] #HALF
+         ]
+
+MIN_WORDS =[
+           [{'x':2,'y':7,'len':7},{'x':11,'y':7,'len':4}], #MINUTES PAST
+           [{'x':2,'y':7,'len':7},{'x':1,'y':8,'len':2}],  #MINUTES TO
+           [{'x':11,'y':7,'len':4}],                       #PAST
+           [{'x':1,'y':8,'len':2}]                         #TO
+           ]
+
+HOUR_NUM =[
+           [{'x':0,'y':0,'len':0}],   #0
+           [{'x':4,'y':8,'len':3}],   #1
+           [{'x':6,'y':10,'len':3}],  #2
+           [{'x':0,'y':9,'len':5}],   #3
+           [{'x':11,'y':10,'len':4}], #4
+           [{'x':2,'y':12,'len':4}],  #5
+           [{'x':2,'y':10,'len':3}],  #6
+           [{'x':7,'y':9,'len':5}],   #7
+           [{'x':1,'y':11,'len':5}],  #8
+           [{'x':11,'y':9,'len':4}],  #9
+           [{'x':9,'y':12,'len':3}],  #10
+           [{'x':8,'y':11,'len':6}],  #11
+           [{'x':9,'y':8,'len':6}]    #12
+          ]
+
+TOD_WORDS =[
+       [{'x':13,'y':12,'len':2}],                                               #AM
+       [{'x':0,'y':14,'len':2}],                                                #PM
+       [{'x':1,'y':13,'len':2},{'x':5,'y':13,'len':3},{'x':0,'y':15,'len':7}],  #IN THE MORNING
+       [{'x':1,'y':13,'len':2},{'x':5,'y':13,'len':3},{'x':3,'y':14,'len':9}],  #IN THE AFTERNOON
+       [{'x':1,'y':13,'len':2},{'x':5,'y':13,'len':3},{'x':9,'y':13,'len':7}],  #IN THE EVENING
+       [{'x':4,'y':13,'len':2},{'x':11,'y':15,'len':5}],                        #AT NIGHT
+       [{'x':8,'y':14,'len':4}],                                                #NOON
+       [{'x':8,'y':15,'len':8}]                                                 #MIDNIGHT
+           ]
+
+def CreateFrameTime( frame, hour, mins, mode, colour ):
+   #PRE TIME
+   for word in PRE_TIME[1]:
+      DrawFrameHLine(frame, word['x'], word['y'], word['len'], colour)
+   
+   #MIN_NUM
+   if (mins > 30): m = 60 - mins
+   else: m = mins
+   for word in MIN_NUM[m]:
+      DrawFrameHLine(frame, word['x'], word['y'], word['len'], colour)
+
+   #MIN_WORDS
+   if mins != 0:
+      if (mins > 30):
+         if mins == 45: mw = 3 #TO
+         else: mw = 1          #MINS TO
+      else:
+         if mins == 15 or mins == 30: mw = 2  #PAST
+         else: mw = 0                        #MINS PAST
+      for word in MIN_WORDS[mw]:
+         DrawFrameHLine(frame, word['x'], word['y'], word['len'], colour)
+   
+   #HOUR_NUM
+   if (hour > 12): h = hour - 12
+   else: h = hour
+   for word in HOUR_NUM[h]:
+      DrawFrameHLine(frame, word['x'], word['y'], word['len'], colour)
+   
+   #TOD_WORDS
+   #if (hour < 12): tod = 2
+   #elif ( hour < 18): tod = 3
+   #elif ( hour < 21): tod = 4
+   #else: tod = 5
+   #for word in TOD_WORDS[tod]:
+   #   DrawFrameHLine(frame, word['x'], word['y'], word['len'], colour)
+
+
+def CreateBlankFrame ( frame ):
+   frame[:] = []
+   for i in range(0,256):
+      frame.append([0x00,0x00,0x00])
+
+def DrawFramePixel ( frame, x , y, colour):
+   if len(frame) != 256:
+      print "SFP - INVALID FRAME"
+   else:
+      frame[(y*16)+x] = colour
+
+def DrawFrameHLine ( frame, x, y, ln , colour):
+   if len(frame) != 256:
+      print "SFP - INVALID FRAME"
+   else:
+      for i in range(0,ln):
+         frame[(y*16)+(x+i)] = colour
+
+def CreateEqualizerFrame( frame , aChans) :
+   if len(aChans) != 16:
+      print "CEF - INVALID aChans Length "+ str(len(aChans))
+   else:
+      for i in range (0,16):
+         DrawFramePixel( frame, i, 15-aChans[i],CYAN)
+
+def CreateEqualizer2Frame( frame , aChans) :
+   if len(aChans) != 16:
+      print "CEF - INVALID aChans Length "+ str(len(aChans))
+   else:
+      for i in range (0,16):
+         for j in range(0,aChans[i]):
+            if j < 6:
+               DrawFramePixel( frame, i, 15-j,GREEN)
+            elif j < 12:
+               DrawFramePixel( frame, i, 15-j,YELLOW)
+            else:
+               DrawFramePixel( frame, i, 15-j,RED)
+
+def CreateBaFrame (frm):
+   tfrm = []
+   for i in range(0,256):
+      tfrm += frm[i]
+   bfrm = bytearray(tfrm)
+   return bfrm
+
+def debugFramePrint ( frame ):
+   if len(frame) != 256:
+      print "DFP - INVALID FRAME"
+   else:
+      for i in range(0,16): #x
+         for j in range(0,16):#y
+            if frame[(i*16)+j] == BLANK:
+               sys.stdout.write(' ')
+            elif frame[(i*16)+j] == RED:
+               sys.stdout.write('R')
+            elif frame[(i*16)+j] == GREEN:
+               sys.stdout.write('G')
+            elif frame[(i*16)+j] == BLUE:
+               sys.stdout.write('B')
+            elif frame[(i*16)+j] == CYAN:
+               sys.stdout.write('C')
+            elif frame[(i*16)+j] == YELLOW:
+               sys.stdout.write('Y')
+            elif frame[(i*16)+j] == MAGENTA:
+               sys.stdout.write('M')
+            elif frame[(i*16)+j] == WHITE:
+               sys.stdout.write('W')
+            sys.stdout.write(' ')
+         sys.stdout.write('\n')
+         
+########################################################################
+
+
+system_exit=False
+ser = serial.Serial( '/dev/ttyAMA0', 460800)
+
+POLL_TIME=0.005
+
+#CMD TYPES 0x43
+PING_CMD 	=  [0x43,0x00]
+START_DRAW	=  [0x43,0x01]
+START_STREAM	=  [0x43,0x02]
+FLUSH_BUFFERS	=  [0x43,0x04]
+GET_LIGHT	=  [0x43,0x08]
+GET_TEMP	=  [0x43,0x10]
+
+def SerialSendBytes( b):
+    for i in b:
+        ser.write(chr(i))
+
+def SerialSendFrame( frame ):
+    for i in range(0,256):
+       for j in frame[i]:
+          ser.write(chr(j))
+
+def SerialSendBAFrame( f ):
+   a = ser.write( f )
+   print a
+
+srt_thread_alive=1
+srt_buffer=[]
+srt_debug_lines=[]
+srt_resp_lines=[]
+srt_flag_ack=0
+
+def SerialRecieverThread( e, name ):
+    global ser
+    global srt_thread_alive
+    global srt_buffer
+    while (srt_thread_alive):
+       e.wait()
+       time.sleep(POLL_TIME)
+       while (ser.inWaiting() != 0):
+           srt_buffer.append(ser.read())
+
+def SerialRecieverDataParseThread ( e, name ):
+   global srt_thread_alive
+   global srt_buffer
+   global srt_debug_lines
+   global srt_resp_lines
+   global srt_flag_ack
+   
+   while (srt_thread_alive):
+      e.wait()
+      time.sleep(POLL_TIME)
+      while len(srt_buffer) > 0:
+         tmpStr = ""
+         if srt_buffer[0] == 'R': #RESPONSE
+            while len(srt_buffer) < 4: pass
+            if srt_buffer[1] == "\x01":
+               srt_flag_ack=1
+            for i in range(0,4):
+               if ord(srt_buffer[0]) > 31:
+                  tmpStr+= srt_buffer.pop(0) #Letter
+               else:
+                  tmpStr+= str(ord(srt_buffer.pop(0))) #Num
+         elif srt_buffer[0] == 'D': #DEBUG MESSAGE
+            print "Debug Disabled"
+            #debug_rx=True
+            #while debug_rx:
+            #   if len(srt_buffer) > 0: 
+            #      if srt_buffer[0] != '\n':
+            #          tmpStr+= srt_buffer.pop(0)
+            #          #srt_buffer.pop(0)
+            #      else:
+            #         srt_buffer.pop(0)
+            #         debug_rx=False
+         else:
+            tmpStr="SRT-PARSER: PARSE ERROR"
+            srt_buffer.pop(0)
+            print srt_buffer
+         #srt_debug_lines.append(tmpStr)
+         #print tmpStr
+       
+
+srt_thread_event = Event()
+srt = Thread(target = SerialRecieverThread, args = (srt_thread_event, "SRT", ))
+srdpt = Thread(target = SerialRecieverDataParseThread, args = (srt_thread_event, "SRDPT", ))
+
+def signal_handler(signal, frame):
+   global system_exit
+   system_exit=True
+
+def main ():
+   timeCol = CYAN
+   global srt_thread_alive
+   global srt_thread_event
+   global ser
+   global srt_flag_ack
+   global system_exit
+   global frame
+   timehistory=""
+   frameBA = bytearray([0x00,0x00])
+   c=0
+   tmpT=0
+   fps=0
+   signal.signal(signal.SIGINT, signal_handler)
+   srt.start()
+   srdpt.start()
+   CreateBlankFrame(frame)
+   get_h = datetime.datetime.now().time().hour
+   get_m = datetime.datetime.now().time().minute
+   CreateFrameTime( frame, 
+                    get_h,
+                    get_m, 
+                    0, 
+                    timeCol )
+   timehistory=str(get_h)+str(get_m)
+   #chan=[1,5,10,2,7,11,14,7,5,0,0,5,8,9,3,4]
+   #CreateEqualizer2Frame(frame,chan)
+   
+   
+   #frameBA = CreateBaFrame(frame)
+   #print binascii.hexlify(frameBA)
+   #sys.exit(0)
+   changeTimeBool = True
+   while(1):
+      ############### FPS ##############################
+      tmpInst = float(datetime.datetime.now().strftime("0.%f"))
+      if(tmpT>tmpInst):
+         diff=tmpT-tmpInst
+      else:
+         diff=tmpInst-tmpT
+      tmpT = tmpInst
+      fps = 1.0/diff
+      #################################################
+      if changeTimeBool:
+         SerialSendBytes(START_STREAM)
+
+         srt_thread_event.set()
+         while(srt_flag_ack == 0): time.sleep(POLL_TIME)
+         srt_flag_ack=0
+         srt_thread_event.clear()
+
+         #os.system('clear')
+         print("\rFPS: " + str(fps) + "C: " + str(c))
+      
+         #print binascii.hexlify(frameBA)
+         SerialSendFrame(frame)
+         c+=1
+      
+         srt_thread_event.set()
+         while(srt_flag_ack == 0): time.sleep(POLL_TIME)
+         srt_flag_ack=0
+         srt_thread_event.clear()
+         changeTimeBool = False
+      
+      if(system_exit):
+         srt_thread_event.set()
+         srt_thread_alive = 0
+         time.sleep(0.5)
+         ser.close()
+         sys.exit(0)
+
+      #Update Time
+      get_h = datetime.datetime.now().time().hour
+      get_m = datetime.datetime.now().time().minute
+      timehistorycompare=str(get_h)+str(get_m)
+      if timehistory != timehistorycompare:
+         print "CHANGE TIME!!!"
+         changeTimeBool = True
+         CreateBlankFrame(frame)
+         CreateFrameTime( frame, 
+                          get_h,
+                          get_m, 
+                          0, 
+                          timeCol )
+         timehistory=timehistorycompare
+  
+main()
+
+
+
+#SerialSendBytes(FLUSH_BUFFERS)
