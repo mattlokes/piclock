@@ -1,4 +1,0 @@
-#!/bin/bash
-
-#Clean up the directory
-rm *.pyc
