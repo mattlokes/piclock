@@ -142,7 +142,18 @@ class clockApp(threading.Thread):
    def __rxCmdPoll(self):
       while not self.rxCmdQueue.empty():
          # Decode Incoming Cmd Packets
-         pass
+         cmd = self.rxCmdQueue.get()
+         #print "-- {0} -- {1} --".format(cmd['typ'],cmd['dat'])
+         # Colour Change Command
+         if cmd['typ'] == "COLOR":
+            self.timeColour = [int(cmd['dat'][0:2],16), #R
+                               int(cmd['dat'][2:4],16), #G
+                               int(cmd['dat'][4:6],16)] #B
+            self.forceUpdate = True
+         # Time Format Change
+         elif cmd['typ'] == "MODE":
+            self.forceUpdate = True
+
       if not self.dying: threading.Timer(self.rxCmdPollTime, self.__rxCmdPoll).start() #rxCmdQueue Poller
 
    # Main Application Loop
