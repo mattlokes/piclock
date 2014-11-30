@@ -1,0 +1,100 @@
+<!DOCTYPE html>  
+<meta charset="utf-8" />
+<title>Clock WebSocket Test</title>
+
+Colour Control: <br> 
+ <script type="text/javascript" src="jscolor/jscolor.js"></script>
+Click here: <input class="color" id="col" value="00ff00">
+
+<script type="text/javascript" src="http://l2.io/ip.js?var=myip"></script>
+<script>
+var wsUri = "ws://192.168.1.114:5005/ws";
+var output;
+var colval = "";
+var nInit = 0;
+var sendTimerObj;
+var DEPRICATE = 1;
+
+function init()
+{ 
+  output = document.getElementById("output");
+  testWebSocket();
+}
+
+function testWebSocket()
+{ 
+  websocket = new WebSocket(wsUri);
+  websocket.onopen = function(evt) { onOpen(evt) };
+  websocket.onclose = function(evt) { onClose(evt) };
+  websocket.onmessage = function(evt) { onMessage(evt) };
+  websocket.onerror = function(evt) { onError(evt) }; 
+}
+
+function timerfun()
+{
+  if(document.getElementById('col').value != colval)
+  { 
+    colval = document.getElementById('col').value;
+    document.getElementById('col').value = colval;
+    doSend("#CLOCK#COLOR#"+colval+"#");
+  }
+}
+
+function onOpen(evt) 
+{ 
+  //writeToScreen(myip); 
+  doSend("#"+myip);
+  if(DEPRICATE) sendTimerObj = setInterval(timerfun,30); 
+}  
+
+function onClose(evt)
+{ 
+  //writeToScreen("DISCONNECTED"); 
+}
+
+function onMessage(evt) 
+{ 
+  if( (evt.data[0] == "(") &&
+      (evt.data[4] == ",") &&
+      (evt.data[8] == ")")) {
+    //Input Coord
+    var cur_yaw   = parseInt(evt.data.slice(1,4));
+    var cur_pitch = parseInt(evt.data.slice(5,8));
+    
+    document.getElementById('yaw').value      = cur_yaw;
+    document.getElementById('yawval').value   = cur_yaw;
+    document.getElementById('pitch').value    = cur_pitch;
+    document.getElementById('pitchval').value = cur_pitch;
+   
+    if(nInit == 0) { 
+      sendTimerObj = setInterval(timerfun,30);
+      nInit = 1;
+    }
+  }
+  //writeToScreen('<span style="color: blue;">RESPONSE: ' + evt.data+'</span>');
+  //websocket.close(); 
+}
+
+function onError(evt) 
+{ 
+  writeToScreen('<span style="color: red;">ERROR:</span> ' + evt.data + " PRINTER OFFLINE?");
+} 
+
+function doSend(message) 
+{
+  //writeToScreen("SENT: " + message);
+  websocket.send(message);
+}
+
+function writeToScreen(message) 
+{
+  var pre = document.createElement("p");
+  pre.style.wordWrap = "break-word";
+  pre.innerHTML = message;
+  output.appendChild(pre);
+}
+
+window.addEventListener("load", init, false);
+</script>
+<div id="output"></div>  
+</html>
