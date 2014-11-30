@@ -5,6 +5,7 @@ import signal
 import sys
 
 import hwInterface
+import wsInterface
 
 import clockApp
 
@@ -14,6 +15,7 @@ def sigIntHandler(signal, frame):
    print " SigInt"
    hw.kill()
    ca.kill()
+   ws.kill()
    time.sleep(2)
    sys.exit(0)
 
@@ -28,6 +30,9 @@ hw.startup()
 
 ca = clockApp.clockApp( frame, txCmd, rxCmd )
 ca.startup()
+
+ws = wsInterface.wsInterface( rxCmd)
+ws.startup()
 
 while True:
    time.sleep(5)
