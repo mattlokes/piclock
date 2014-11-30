@@ -119,6 +119,7 @@ class clockApp(threading.Thread):
       self.rxCmdQueue = rxCmdQueue
       threading.Timer(self.rxCmdPollTime, self.__rxCmdPoll).start() #rxCmdQueue Poller
       self.start()
+      print "Initializing {0} Application...".format(self.ID)
 
    def startup(self):
       self.frameLib.CreateBlankFrame(self.frame)
@@ -129,13 +130,14 @@ class clockApp(threading.Thread):
       self.timeHistory=str(h)+str(m)
 
       threading.Timer(self.appPollTime, self.__appPoll).start() #App Poller
+      print "Starting {0} Application...".format(self.ID)
 
 
    def kill(self):
       self.dying = True
       time.sleep(0.1)
-      self.stop()
-      print "Stopping {0} Application..."
+      #self.stop()
+      print "Stopping {0} Application...".format(self.ID)
 
    def __rxCmdPoll(self):
       while not self.rxCmdQueue.empty():
@@ -174,7 +176,12 @@ class clockApp(threading.Thread):
       else: m = mins
       for word in self.MIN_NUM[m]:
          self.frameLib.DrawFrameHLine(frame, word['x'], word['y'], word['len'], colour)
-   
+      
+      #Alter hour when  mins to
+      if mins > 30:
+         if hour == 24: hour = 1
+         else: hour += 1    
+ 
       #MIN_WORDS
       if mins != 0:
          if (mins > 30):
