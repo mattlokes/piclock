@@ -1,5 +1,6 @@
 import Queue
 import clockApp
+import wsInterface
 import time
 import frameLib
 
@@ -10,11 +11,5 @@ frame = Queue.Queue()
 ca = clockApp.clockApp( frame, txCmd, rxCmd )
 ca.startup()
 
-while True:
-   if not frame.empty():
-      fr = frame.get()
-      print "-- dst: {0} -- src: {1} --".format(fr['dst'], fr['src'])
-      frameLib.debugFramePrint(fr['dat'])
-   time.sleep(0.1)
-
-
+ws = wsInterface.wsInterface( rxCmd )
+ws.startup()
