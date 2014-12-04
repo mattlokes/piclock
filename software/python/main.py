@@ -25,7 +25,7 @@ rxCmd = Queue.Queue()
 txCmd = Queue.Queue()
 frame = Queue.Queue()
 
-hw = hwInterface.hwInterface ( frame, txCmd, rxCmd )
+hw = hwInterface.hwInterface ( frame, txCmd, rxCmd, True )
 hw.startup()
 
 ca = clockApp.clockApp( frame, txCmd, rxCmd )
