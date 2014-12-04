@@ -112,7 +112,6 @@ void pfbPush(void) {
     //Choose Next Free Slot
     tmpNext = PfbNextFree + 1;
     PfbNextFree = (tmpNext == PFB_FRAMES) ? 0 : tmpNext; // Roll Round
-    //PfbFull = (PfbNextFree == PfbHead) ? 1 : 0; // If tmpNext is valid then full
     ++PfbCount; //Increment Count
     PfbFull = (PfbCount >= PFB_FRAMES) ? 1 : 0; // If PfbCount == PFB_FRAMES then Full
 }
@@ -167,7 +166,7 @@ inline void pfbDrawFont( uint32_t * pfb , uint8_t x0, uint8_t x1, uint8_t letter
 /*ActivePaddedFrames
  * Holds 2 *Uncompressed* Frames ready to be sent via SPI to LED Matrix
  * This takes into account all the extra padding needed for unused PWM channels
- * and extra 4 precisions bit padding per LED. There are two of these Frames,
+ * and extra 4 precision bits padding per LED. There are two of these Frames,
  * One active being used to drive the Display, The other is being filled if Pfb is not empty
  * 
  * where R = NextRow to SPI 
@@ -282,8 +281,6 @@ void uartDebug(uint8_t* mess, uint8_t messLen){
         UARTSendDataByte(UART2, mess[i]);
     }
     
-    //while(!UARTTransmitterIsReady(UART2));
-    //UARTSendDataByte(UART2, mess);
     while(!UARTTransmitterIsReady(UART2));
     UARTSendDataByte(UART2, '\r');
     while(!UARTTransmitterIsReady(UART2));
@@ -342,12 +339,12 @@ uint8_t    dmaTxComplete = 0;
 
 void dmaStreamSetup( uint32_t* pfb ){
    dmaTxComplete = 0;
-   // configure the dma channel chain
+   // Configure the dma channels to chain
    DmaChnOpen(chn0,DMA_CHN_PRI0,DMA_OPEN_DEFAULT);
    DmaChnOpen(chn1,DMA_CHN_PRI0,DMA_OPEN_CHAIN_HI);
    DmaChnOpen(chn2,DMA_CHN_PRI0,DMA_OPEN_CHAIN_HI);
    DmaChnOpen(chn3,DMA_CHN_PRI0,DMA_OPEN_CHAIN_HI);
-   //UART2 rx interrupt to start transfer, stops upon detection of 0xFFFF
+   //UART2 rx interrupt to start transfer, stops after 1024KB has be transferered
    DmaChnSetEventControl(chn0, DMA_EV_START_IRQ_EN | DMA_EV_START_IRQ(_UART2_RX_IRQ));
    DmaChnSetEventControl(chn1, DMA_EV_START_IRQ_EN | DMA_EV_START_IRQ(_UART2_RX_IRQ));
    DmaChnSetEventControl(chn2, DMA_EV_START_IRQ_EN | DMA_EV_START_IRQ(_UART2_RX_IRQ));
@@ -357,7 +354,7 @@ void dmaStreamSetup( uint32_t* pfb ){
    DmaChnSetTxfer(chn1, (void*)&U2RXREG, (void*)pfb+256, 1, 256, 1);
    DmaChnSetTxfer(chn2, (void*)&U2RXREG, (void*)pfb+512, 1, 256, 1);
    DmaChnSetTxfer(chn3, (void*)&U2RXREG, (void*)pfb+768, 1, 256, 1);
-   DmaChnSetEvEnableFlags(chn3, DMA_EV_BLOCK_DONE); // enable the transfer done interrupt: pattern match or all the characters transferred
+   DmaChnSetEvEnableFlags(chn3, DMA_EV_BLOCK_DONE); // enable the transfer done interrupt on final chained dma
 
    // Set up DMA Block Complete interrupt with a priority of 7 and zero sub-priority 
    INTSetVectorPriority(INT_DMA_3_VECTOR, INT_PRIORITY_LEVEL_7);
@@ -367,7 +364,7 @@ void dmaStreamSetup( uint32_t* pfb ){
    // Enable multi-vector interrupts
    INTConfigureSystem(INT_SYSTEM_CONFIG_MULT_VECTOR);
    INTEnableInterrupts();
-   // enable the chn0 to start the DMA Chain wait
+   // enable the chn0 to start the DMA Chain
    DmaChnEnable(chn0);
 }
 
@@ -396,7 +393,6 @@ void setupGSCLK(void){
 void setupSPI(void){
     // 32 bits/char, input data sampled at end of data, Try inverted Clock
     SpiOpenFlags oFlags=SPI_OPEN_MODE32 |SPI_OPEN_MSTEN;
-    //| SPI_OPEN_CKP_HIGH | SPI_OPEN_CKE_REV;
     // Open SPI module, use SPI channel 1, use flags set above, Divide Fpb by 4
     SpiChnOpen(SPI_CHANNEL2, oFlags, 8);
 }
@@ -655,75 +651,14 @@ int main(void) {
                 case DECODE_STREAM_SM:
                     dmaStreamSetup( Pfb[PfbNextFree] );
                     uartDebug("Dma Stream Setup",16);
-                    /*uint8_t fEnAct = 0;
-                    uint8_t fEvent0 = 0;
-                    uint8_t fEvent1 = 0;
-                    uint8_t fEvent2 = 0;
-                    uint8_t fEvent3 = 0;*/
 
-                    uint8_t fCp0 = 0;
-                    uint8_t fCp1 = 0;
-                    char valStr [9];
-                    uint32Str((void*)Pfb[PfbNextFree], valStr); //Print Pfb Pointer
-                    uartDebug(valStr,8);
-                    while(dmaTxComplete == 0){
-                       /* if ((fEnAct == 0) && (DMACON & 0x00008800)) {
-                            uartDebug("Dma Module Enabled & Active",27);
-                            fEnAct = 1;
-                        }
-
-                        if ((fEvent0 == 0) && (DCH0CON & 0x00008004)) {
-                            uartDebug("Dma CH0 Event",13);
-                            fEvent0 = 0;
-                        }
-                        if ((fEvent1 == 0) && (DCH1CON & 0x00008004)) {
-                            uartDebug("Dma CH1 Event",13);
-                            fEvent1 = 0;
-                            if (~DCH0CON & 0x00008000){
-                                uartDebug("Dma CH0 Inactive",17);
-                            }
-                        }
-                        if ((fEvent2 == 0) && (DCH2CON & 0x00008004)) {
-                            uartDebug("Dma CH2 Event",13);
-                            fEvent2 = 0;
-                            if (~DCH1CON & 0x00008000){
-                                uartDebug("Dma CH1 Inactive",17);
-                            }
-                        }
-                        if ((fEvent3 == 0) && (DCH3CON & 0x00008004)) {
-                            uartDebug("Dma CH3 Event",13);
-                            fEvent3 = 0;
-                            if (~DCH2CON & 0x00008000){
-                                uartDebug("Dma CH2 Inactive",17);
-                            }
-                        }
-
-                        if ((fCp0 == 0) && (DCH0CPTR > 0)) {
-                            uartDebug("Dma CH0 PTR > 0",15);
-                            fCp0 = 1;
-                        }
-                        if ((fCp1 == 0) && (DCH0CPTR > 128)) {
-                            uartDebug("Dma CH0 PTR > 128",17);
-                            fCp1 = 1;
-                        }*/
-                    };
+                    while(dmaTxComplete == 0){};
                     uartDebug("Dma Stream Complete",19);
 
-                    //Kludge -- Replace with DMA to speed up!
-                    //for(i=0; i<256; i++){
-                    //    tmpPix = 0;
-                    //   for(j=0; j<3; j++) {
-                    //       while(!UART_DATA_AVAIL);
-                    //       tmpPix |= ((uint32_t)UARTGetDataByte(UART2)) << j*12;
-                    //    }
-                    //    Pfb[PfbNextFree][i] = tmpPix;
-                    //}
-
-                    //uartPFBPrint
                     pfbPush();
                     uartSendRsp(ACK_RSP,0x0001);
                     RxState = CMD_SM;
-                    //uartDebug("End Stream",10);
+                    uartDebug("End Stream",10);
                     break;
                 default:
                     uartDebug("Bad State",9);
