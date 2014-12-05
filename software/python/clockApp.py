@@ -68,7 +68,7 @@ class clockApp(threading.Thread):
               ]
    
    HOUR_NUM =[
-              [{'x':0,'y':0,'len':0}],   #0
+              [{'x':9,'y':8,'len':6}],   #0
               [{'x':4,'y':8,'len':3}],   #1
               [{'x':6,'y':10,'len':3}],  #2
               [{'x':0,'y':9,'len':5}],   #3
@@ -146,9 +146,9 @@ class clockApp(threading.Thread):
          #print "-- {0} -- {1} --".format(cmd['typ'],cmd['dat'])
          # Colour Change Command
          if cmd['typ'] == "COLOR":
-            self.timeColour = [int(cmd['dat'][0:2],16), #R
+            self.timeColour = [int(cmd['dat'][4:6],16), #R
                                int(cmd['dat'][2:4],16), #G
-                               int(cmd['dat'][4:6],16)] #B
+                               int(cmd['dat'][0:2],16)] #B
             self.forceUpdate = True
          # Time Format Change
          elif cmd['typ'] == "MODE":

@@ -57,13 +57,14 @@ class hwInterface(threading.Thread):
       if not self.fastRx:
          self.srt = Thread(target = self.__serialRecieverThread, args = (self.srtThreadEvent, "SRT", ))
          self.srdpt = Thread(target = self.__serialRecieverDataParseThread, args = (self.srtThreadEvent, "SRDPT", ))
-      threading.Timer(self.rxCmdPollTime, self.__rxCmdPoll).start() #rxCmdQueue Poller
+      #threading.Timer(self.rxCmdPollTime, self.__rxCmdPoll).start() #rxCmdQueue Poller
       self.start()
       print "Initializing {0} Application...".format(self.ID)
 
    def startup(self):
       self.frameCount=0
       if not self.fastRx:
+         print "hwInterface: fastRx disabled, serial parsing threads start"
          self.srtThreadAlive = True
          self.srt.start()
          self.srdpt.start()
