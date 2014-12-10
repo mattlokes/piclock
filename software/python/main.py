@@ -4,7 +4,7 @@ import frameLib
 import signal
 import sys
 
-#import hwInterface
+import hwInterface
 import wsInterface
 
 import clockApp
@@ -25,7 +25,7 @@ rxPipe = Queue.Queue()
 txPipe = Queue.Queue()
 fakePipe = Queue.Queue()
 
-hw = hwInterface.hwInterface ( txPipe, fakePipe, True )
+hw = hwInterface.hwInterface ( fakePipe, txPipe, True )
 hw.startup()
 
 ca = clockApp.clockApp( txPipe, rxPipe )
