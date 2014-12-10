@@ -26,13 +26,12 @@ class hwInterface(threading.Thread):
    ID="IFACE"
    dying = False
    debugEn = False
-   ser = serial.Serial( '/dev/ttyAMA0', 460800)
    
    serialPollTime = 0.005
    rxCmdPollTime = 0.01
 
    srtThreadAlive = False
-   srtBuffer =[ ]
+   srtBuffer =[]
    srtFlagAck=0
    srtThreadEvent = Event()
  
@@ -43,12 +42,15 @@ class hwInterface(threading.Thread):
    # txCmdQueue = TX Cmd Queue , (Always Push)
    # rxCmdQueue = Rx Cmd Queue , (Always Pop)
 
-   def __init__(self,txCmdQueue,rxCmdQueue,fastRx):
+   def __init__(self,txCmdQueue,rxCmdQueue,fastRx, fakeSerial):
       threading.Thread.__init__(self) #MagicT
       self.dying = False
       self.txCmdQueue = txCmdQueue
       self.rxCmdQueue = rxCmdQueue
       self.fastRx = fastRx
+      self.fakeSerial = fakeSerial
+      if not self.fakeSerial:
+         ser = serial.Serial( '/dev/ttyAMA0', 460800)
       #When using debugging turn fastRx off as it turns on the serial parsing threads
       if not self.fastRx:
          self.srt = Thread(target = self.__serialRecieverThread, args = (self.srtThreadEvent, "SRT", ))
@@ -72,6 +74,7 @@ class hwInterface(threading.Thread):
       if not self.fastRx:
          self.srtThreadEvent.set()
          self.srtThreadAlive = 0
+      if not self.fakeSerial:
          self.ser.close()
       time.sleep(0.1)
       #self.stop()
@@ -80,44 +83,49 @@ class hwInterface(threading.Thread):
    def __rxCmdPoll(self):
       cmd = self.rxCmdQueue.get()
       if cmd['typ'] == "frame":
-         # Send Stream REQ
-         self.__serialSendBytes(self.START_STREAM)
-         
-         # Wait for ACK
-         self.__serialWaitAck()          
+         self.__serialSendBytes(self.START_STREAM) # Send Stream REQ
+         self.__serialWaitAck()   # Wait for ACK        
 
          #os.system('clear')
          #print "Frame #{0}".format(str(self.frameCount))
          
-         #Send Frame
-         self.__serialSendFrame(cmd['dat'])
-         
-         # Wait for ACK
-         self.__serialWaitAck()          
+         self.__serialSendFrame(cmd['dat']) #Send Frame
+         self.__serialWaitAck() # Wait for ACK          
          
          self.frameCount+=1
 
       if not self.dying: threading.Timer(self.rxCmdPollTime, self.__rxCmdPoll).start() #rxFrameQueue Poller
    
    def __serialSendBytes( self, b ):
-       for i in b:
-           self.ser.write(chr(i))
+      if self.fakeSerial:
+         pass
+      else:
+         for i in b:
+            self.ser.write(chr(i))
    
    def __serialSendFrame( self, frame ):
-       outBuff = []
-       for i in range(0,256):
-          outBuff += [frame[i][0], frame[i][1] & 0xF0, frame[i][1] & 0x0F, frame[i][2]]
-       self.ser.write(bytearray(outBuff))
+      if self.fakeSerial:
+         os.system('clear')
+         #self.frameLib.debugFramePrint(frame)
+         self.frameLib.debugFrameLetterPrint(frame)
+      else:
+         outBuff = []
+         for i in range(0,256):
+            outBuff += [frame[i][0], frame[i][1] & 0xF0, frame[i][1] & 0x0F, frame[i][2]]
+         self.ser.write(bytearray(outBuff))
 
    def __serialWaitAck (self):
-      if not self.fastRx:
-         self.srtThreadEvent.set()
-         while(self.srtFlagAck == 0): time.sleep(self.serialPollTime)
-         self.srtFlagAck=0
-         self.srtThreadEvent.clear()
+      if self.fakeSerial:
+         pass
       else:
-         #while(self.ser.read(size=4) is not 
-         self.ser.read(size=4)
+         if not self.fastRx:
+            self.srtThreadEvent.set()
+            while(self.srtFlagAck == 0): time.sleep(self.serialPollTime)
+            self.srtFlagAck=0
+            self.srtThreadEvent.clear()
+         else:
+            #while(self.ser.read(size=4) is not 
+            self.ser.read(size=4)
    
    def __serialRecieverThread( self, e, name ):
       while (self.srtThreadAlive):
