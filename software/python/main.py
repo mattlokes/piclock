@@ -4,7 +4,7 @@ import frameLib
 import signal
 import sys
 
-import hwInterface
+#import hwInterface
 import wsInterface
 
 import clockApp
@@ -21,17 +21,17 @@ def sigIntHandler(signal, frame):
 
 signal.signal(signal.SIGINT, sigIntHandler)
 
-rxCmd = Queue.Queue()
-txCmd = Queue.Queue()
-frame = Queue.Queue()
+rxPipe = Queue.Queue()
+txPipe = Queue.Queue()
+fakePipe = Queue.Queue()
 
-hw = hwInterface.hwInterface ( frame, txCmd, rxCmd, True )
+hw = hwInterface.hwInterface ( txPipe, fakePipe, True )
 hw.startup()
 
-ca = clockApp.clockApp( frame, txCmd, rxCmd )
+ca = clockApp.clockApp( txPipe, rxPipe )
 ca.startup()
 
-ws = wsInterface.wsInterface( rxCmd)
+ws = wsInterface.wsInterface( rxPipe )
 ws.startup()
 
 while True:

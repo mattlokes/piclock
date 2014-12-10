@@ -29,8 +29,7 @@ class hwInterface(threading.Thread):
    ser = serial.Serial( '/dev/ttyAMA0', 460800)
    
    serialPollTime = 0.005
-   rxCmdPollTime = 0.02
-   rxFramePollTime = 0.01
+   rxCmdPollTime = 0.01
 
    srtThreadAlive = False
    srtBuffer =[ ]
@@ -39,17 +38,14 @@ class hwInterface(threading.Thread):
  
    frameCount=0
    
-   # framePacket: { 'dst': <packetDst>, 'src': 'CLOCK'    'dat': <frameData> }
    # cmdPacket:   { 'dst': 'CLOCK',     'src':<packetSrc> 'typ': <cmdType>, 'dat': <cmdData> }
 
-   # rxFrameQueue = RX Frame Queue, (Always Pop)
    # txCmdQueue = TX Cmd Queue , (Always Push)
    # rxCmdQueue = Rx Cmd Queue , (Always Pop)
 
-   def __init__(self,rxFrameQueue,txCmdQueue,rxCmdQueue,fastRx):
+   def __init__(self,txCmdQueue,rxCmdQueue,fastRx):
       threading.Thread.__init__(self) #MagicT
       self.dying = False
-      self.rxFrameQueue = rxFrameQueue
       self.txCmdQueue = txCmdQueue
       self.rxCmdQueue = rxCmdQueue
       self.fastRx = fastRx
@@ -57,7 +53,6 @@ class hwInterface(threading.Thread):
       if not self.fastRx:
          self.srt = Thread(target = self.__serialRecieverThread, args = (self.srtThreadEvent, "SRT", ))
          self.srdpt = Thread(target = self.__serialRecieverDataParseThread, args = (self.srtThreadEvent, "SRDPT", ))
-      threading.Timer(self.rxCmdPollTime, self.__rxCmdPoll).start() #rxCmdQueue Poller
       self.start()
       print "Initializing {0} Application...".format(self.ID)
 
@@ -67,7 +62,7 @@ class hwInterface(threading.Thread):
          self.srtThreadAlive = True
          self.srt.start()
          self.srdpt.start()
-      threading.Timer(self.rxFramePollTime, self.__rxFramePoll).start() #frameQueue Poller
+      threading.Timer(self.rxCmdPollTime, self.__rxCmdPoll).start() #rxCmdQueue Poller
       print "Starting {0} Application...".format(self.ID)
 
 
@@ -81,9 +76,9 @@ class hwInterface(threading.Thread):
       #self.stop()
       print "Stopping {0} Application...".format(self.ID)
 
-   def __rxFramePoll(self):
-      if not self.rxFrameQueue.empty():
-         fr = self.rxFrameQueue.get()
+   def __rxCmdPoll(self):
+      cmd = self.rxCmdQueue.get()
+      if cmd['typ'] == "frame":
          # Send Stream REQ
          self.__serialSendBytes(self.START_STREAM)
          
@@ -94,20 +89,14 @@ class hwInterface(threading.Thread):
          #print "Frame #{0}".format(str(self.frameCount))
          
          #Send Frame
-         self.__serialSendFrame(fr['dat'])
+         self.__serialSendFrame(cmd['dat'])
          
          # Wait for ACK
          self.__serialWaitAck()          
          
          self.frameCount+=1
 
-      if not self.dying: threading.Timer(self.rxFramePollTime, self.__rxFramePoll).start() #rxFrameQueue Poller
-   
-   def __rxCmdPoll(self):
-      while not self.rxCmdQueue.empty():
-         # Decode Incoming Cmd Packets
-         pass
-      if not self.dying: threading.Timer(self.rxCmdPollTime, self.__rxCmdPoll).start() #rxCmdQueue Poller
+      if not self.dying: threading.Timer(self.rxCmdPollTime, self.__rxCmdPoll).start() #rxFrameQueue Poller
    
    def __serialSendBytes( self, b ):
        for i in b:

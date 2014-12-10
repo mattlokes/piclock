@@ -104,20 +104,16 @@ class clockApp(threading.Thread):
    timeColour = frameLib.GREEN  #Default Colour
    timeHistory=""
 
-   # framePacket: { 'dst': <packetDst>, 'src': 'CLOCK'    'dat': <frameData> }
    # cmdPacket:   { 'dst': 'CLOCK',     'src':<packetSrc> 'typ': <cmdType>, 'dat': <cmdData> }
   
-   # txFrameQueue = TX Frame Queue, (Always Push)
    # txCmdQueue = TX Cmd Queue , (Always Push)
    # rxCmdQueue = Rx Cmd Queue , (Always Pop)
   
-   def __init__(self,txFrameQueue,txCmdQueue,rxCmdQueue):
+   def __init__(self,txCmdQueue,rxCmdQueue):
       threading.Thread.__init__(self) #MagicT
       self.dying = False
-      self.txFrameQueue = txFrameQueue
       self.txCmdQueue = txCmdQueue
       self.rxCmdQueue = rxCmdQueue
-      threading.Timer(self.rxCmdPollTime, self.__rxCmdPoll).start() #rxCmdQueue Poller
       self.start()
       print "Initializing {0} Application...".format(self.ID)
 
@@ -129,6 +125,7 @@ class clockApp(threading.Thread):
       self.__framePush(self.frame)
       self.timeHistory=str(h)+str(m)
 
+      threading.Timer(self.rxCmdPollTime, self.__rxCmdPoll).start() #rxCmdQueue Poller
       threading.Timer(self.appPollTime, self.__appPoll).start() #App Poller
       print "Starting {0} Application...".format(self.ID)
 
@@ -140,19 +137,18 @@ class clockApp(threading.Thread):
       print "Stopping {0} Application...".format(self.ID)
 
    def __rxCmdPoll(self):
-      while not self.rxCmdQueue.empty():
-         # Decode Incoming Cmd Packets
-         cmd = self.rxCmdQueue.get()
-         #print "-- {0} -- {1} --".format(cmd['typ'],cmd['dat'])
-         # Colour Change Command
-         if cmd['typ'] == "COLOR":
-            self.timeColour = [int(cmd['dat'][0:2],16), #R
-                               int(cmd['dat'][2:4],16), #G
-                               int(cmd['dat'][4:6],16)] #B
-            self.forceUpdate = True
-         # Time Format Change
-         elif cmd['typ'] == "MODE":
-            self.forceUpdate = True
+      cmd = self.rxCmdQueue.get()
+      # Decode Incoming Cmd Packets
+      #print "-- {0} -- {1} --".format(cmd['typ'],cmd['dat'])
+      # Colour Change Command
+      if cmd['typ'] == "COLOR":
+         self.timeColour = [int(cmd['dat'][0:2],16), #R
+                            int(cmd['dat'][2:4],16), #G
+                            int(cmd['dat'][4:6],16)] #B
+         self.forceUpdate = True
+      # Time Format Change
+      elif cmd['typ'] == "MODE":
+         self.forceUpdate = True
 
       if not self.dying: threading.Timer(self.rxCmdPollTime, self.__rxCmdPoll).start() #rxCmdQueue Poller
 
@@ -173,8 +169,9 @@ class clockApp(threading.Thread):
       if not self.dying: threading.Timer(self.appPollTime, self.__appPoll).start() #App Poller
    
    def __framePush(self, frame):
-      self.txFrameQueue.put({'dst': "IFACE",
+      self.txCmdQueue.put({'dst': "IFACE",
                            'src': self.ID,
+                           'typ': "frame",
                            'dat': frame})
    
    def __CreateTimeFrame(self, frame, hour, mins, mode, colour ):
