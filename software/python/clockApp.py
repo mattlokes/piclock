@@ -93,12 +93,68 @@ class clockApp(threading.Thread):
           [{'x':8,'y':14,'len':4}],                                                #NOON
           [{'x':8,'y':15,'len':8}]                                                 #MIDNIGHT
               ]
+
+   DIGNUM_5_3 = [
+                  [ 1,1,1,   #0
+                    1,0,1,
+                    1,0,1,
+                    1,0,1,
+                    1,1,1],
+                  [ 0,1,0,   #1
+                    1,1,0,
+                    0,1,0,
+                    0,1,0,
+                    1,1,1],
+                  [ 1,1,1,   #2
+                    0,0,1,
+                    1,1,1,
+                    1,0,0,
+                    1,1,1],
+                  [ 1,1,1,   #3
+                    0,0,1,
+                    1,1,1,
+                    0,0,1,
+                    1,1,1],
+                  [ 1,0,1,   #4
+                    1,0,1,
+                    1,1,1,
+                    0,0,1,
+                    0,0,1],
+                  [ 1,1,1,   #5
+                    1,0,0,
+                    1,1,1,
+                    0,0,1,
+                    1,1,1],
+                  [ 1,1,1,   #6
+                    1,0,0,
+                    1,1,1,
+                    1,0,1,
+                    1,1,1],
+                  [ 1,1,1,   #7
+                    0,0,1,
+                    0,0,1,
+                    0,0,1,
+                    0,0,1],
+                  [ 1,1,1,   #8
+                    1,0,1,
+                    1,1,1,
+                    1,0,1,
+                    1,1,1],
+                  [ 1,1,1,   #9
+                    1,0,1,
+                    1,1,1,
+                    0,0,1,
+                    0,0,1]
+                  ]
    
    ID = "CLOCK"
    dying = False
    appPollTime = 0.1
    rxCmdPollTime = 0.02   
    forceUpdate = False
+
+   #clockMode = "word"
+   clockMode = "dig0"
    
    frame = []
    timeColour = frameLib.GREEN  #Default Colour
@@ -119,12 +175,7 @@ class clockApp(threading.Thread):
 
    def startup(self):
       self.frameLib.CreateBlankFrame(self.frame)
-      h = datetime.datetime.now().time().hour
-      m = datetime.datetime.now().time().minute
-      self.__CreateTimeFrame( self.frame, h, m, 0, self.timeColour )
-      self.__framePush(self.frame)
-      self.timeHistory=str(h)+str(m)
-
+      self.forceUpdate = True
       threading.Timer(self.rxCmdPollTime, self.__rxCmdPoll).start() #rxCmdQueue Poller
       threading.Timer(self.appPollTime, self.__appPoll).start() #App Poller
       print "Starting {0} Application...".format(self.ID)
@@ -161,7 +212,7 @@ class clockApp(threading.Thread):
 
       if self.timeHistory != timeHistoryCompare or self.forceUpdate:
          self.frameLib.CreateBlankFrame(self.frame)
-         self.__CreateTimeFrame( self.frame, get_h, get_m, 0, self.timeColour )
+         self.__CreateTimeFrame( self.frame, get_h, get_m, self.clockMode, self.timeColour )
          self.__framePush(self.frame)
          self.timeHistory=timeHistoryCompare
          self.forceUpdate = False
@@ -175,6 +226,26 @@ class clockApp(threading.Thread):
                            'dat': frame})
    
    def __CreateTimeFrame(self, frame, hour, mins, mode, colour ):
+      if mode == "word0":
+         self.__CreateTimeFrameWord(frame, hour, mins, colour, 0)
+      if mode == "dig0":
+         self.__CreateTimeFrameDigital(frame, hour, mins, colour, 0)
+   
+   def __CreateTimeFrameDigital(self, frame, hour, mins, colour, subMode):
+      char = [hour / 10, hour % 10, mins / 10, mins % 10]
+      ptr_x = 0
+      ptr_y = 5
+      for ci in range(0,len(char)):
+         c = char[ci]
+         for i in range(0,5):
+            for j in range(0,3):
+               if self.DIGNUM_5_3[c][(i*3)+j] == 1:
+                  self.frameLib.DrawFramePixel(frame, ptr_x+j, ptr_y+i, colour)
+         if ci == 1: ptr_x += 1 #add extra space for mins to hours
+         ptr_x += 4
+
+
+   def __CreateTimeFrameWord(self, frame, hour, mins, colour, subMode):
       #PRE TIME
       for word in self.PRE_TIME[1]:
          self.frameLib.DrawFrameHLine(frame, word['x'], word['y'], word['len'], colour)

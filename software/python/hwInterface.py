@@ -23,7 +23,7 @@ class hwInterface(threading.Thread):
    GET_LIGHT	 =  [0x43,0x08]
    GET_TEMP	 =  [0x43,0x10]
    
-   ID="IFACE"
+   ID="DISP"
    dying = False
    debugEn = False
    
