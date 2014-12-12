@@ -17,232 +17,17 @@ from libraries.frameLib import *
 
 class clockApp(threading.Thread):
    
-   PRE_TIME =[
-         [{'x':1,'y':0,'len':3},{'x':7,'y':0,'len':4},{'x':13,'y':0,'len':2}], #The Time Is
-         [{'x':6,'y':0,'len':2},{'x':13,'y':0,'len':2}],  #It is
-         [{'x':9,'y':4,'len':1},{'x':9,'y':5,'len':1},{'x':9,'y':6,'len':1},{'x':9,'y':7,'len':1}]
-         #Matt
-            ]
-   
-   MIN_NUM =[
-            [{'x':0,'y':0,'len':0}], #0
-            [{'x':7,'y':3,'len':3}], #1
-            [{'x':12,'y':2,'len':3}], #2
-            [{'x':1,'y':3,'len':5}], #3
-            [{'x':6,'y':2,'len':4}], #4
-            [{'x':11,'y':1,'len':4}], #5
-            [{'x':0,'y':5,'len':3}], #6
-            [{'x':11,'y':3,'len':5}], #7
-            [{'x':0,'y':2,'len':5}], #8
-            [{'x':10,'y':4,'len':4}], #9
-            [{'x':7,'y':1,'len':3}], #10
-            [{'x':10,'y':5,'len':6}], #11
-            [{'x':3,'y':5,'len':6}], #12
-            [{'x':1,'y':6,'len':4},{'x':5,'y':6,'len':4}], #13
-            [{'x':6,'y':2,'len':4},{'x':5,'y':6,'len':4}], #14
-            [{'x':1,'y':4,'len':7}], #QUARTER
-            [{'x':0,'y':5,'len':3},{'x':5,'y':6,'len':4}], #16
-            [{'x':11,'y':3,'len':5},{'x':5,'y':6,'len':4}], #17
-            [{'x':0,'y':2,'len':4},{'x':5,'y':6,'len':4}], #18
-            [{'x':10,'y':4,'len':4},{'x':5,'y':6,'len':4}], #19
-            [{'x':0,'y':1,'len':6}], #20
-            [{'x':7,'y':3,'len':3},{'x':0,'y':1,'len':6}], #21
-            [{'x':12,'y':2,'len':3},{'x':0,'y':1,'len':6}], #22
-            [{'x':1,'y':3,'len':5},{'x':0,'y':1,'len':6}], #23
-            [{'x':6,'y':2,'len':4},{'x':0,'y':1,'len':6}], #24
-            [{'x':11,'y':1,'len':4},{'x':0,'y':1,'len':6}], #25
-            [{'x':0,'y':5,'len':3},{'x':0,'y':1,'len':6}], #26
-            [{'x':11,'y':3,'len':5},{'x':0,'y':1,'len':6}], #27
-            [{'x':0,'y':2,'len':5},{'x':0,'y':1,'len':6}], #28
-            [{'x':10,'y':4,'len':4},{'x':0,'y':1,'len':6}], #29
-            [{'x':10,'y':6,'len':4}] #HALF
-            ]
-   
-   MIN_WORDS =[
-              [{'x':2,'y':7,'len':7},{'x':11,'y':7,'len':4}], #MINUTES PAST
-              [{'x':2,'y':7,'len':7},{'x':1,'y':8,'len':2}],  #MINUTES TO
-              [{'x':11,'y':7,'len':4}],                       #PAST
-              [{'x':1,'y':8,'len':2}]                         #TO
-              ]
-   
-   HOUR_NUM =[
-              [{'x':9,'y':8,'len':6}],   #0
-              [{'x':4,'y':8,'len':3}],   #1
-              [{'x':6,'y':10,'len':3}],  #2
-              [{'x':0,'y':9,'len':5}],   #3
-              [{'x':11,'y':10,'len':4}], #4
-              [{'x':2,'y':12,'len':4}],  #5
-              [{'x':2,'y':10,'len':3}],  #6
-              [{'x':7,'y':9,'len':5}],   #7
-              [{'x':1,'y':11,'len':5}],  #8
-              [{'x':11,'y':9,'len':4}],  #9
-              [{'x':9,'y':12,'len':3}],  #10
-              [{'x':8,'y':11,'len':6}],  #11
-              [{'x':9,'y':8,'len':6}]    #12
-             ]
-   
-   TOD_WORDS =[
-          [{'x':13,'y':12,'len':2}],                                               #AM
-          [{'x':0,'y':14,'len':2}],                                                #PM
-          [{'x':1,'y':13,'len':2},{'x':5,'y':13,'len':3},{'x':0,'y':15,'len':7}],  #IN THE MORNING
-          [{'x':1,'y':13,'len':2},{'x':5,'y':13,'len':3},{'x':3,'y':14,'len':9}],  #IN THE AFTERNOON
-          [{'x':1,'y':13,'len':2},{'x':5,'y':13,'len':3},{'x':9,'y':13,'len':7}],  #IN THE EVENING
-          [{'x':4,'y':13,'len':2},{'x':11,'y':15,'len':5}],                        #AT NIGHT
-          [{'x':8,'y':14,'len':4}],                                                #NOON
-          [{'x':8,'y':15,'len':8}]                                                 #MIDNIGHT
-              ]
-
-   DIGNUM_5_3 = [
-                  [ 1,1,1,   #0
-                    1,0,1,
-                    1,0,1,
-                    1,0,1,
-                    1,1,1],
-                  [ 0,1,0,   #1
-                    1,1,0,
-                    0,1,0,
-                    0,1,0,
-                    1,1,1],
-                  [ 1,1,1,   #2
-                    0,0,1,
-                    1,1,1,
-                    1,0,0,
-                    1,1,1],
-                  [ 1,1,1,   #3
-                    0,0,1,
-                    1,1,1,
-                    0,0,1,
-                    1,1,1],
-                  [ 1,0,1,   #4
-                    1,0,1,
-                    1,1,1,
-                    0,0,1,
-                    0,0,1],
-                  [ 1,1,1,   #5
-                    1,0,0,
-                    1,1,1,
-                    0,0,1,
-                    1,1,1],
-                  [ 1,1,1,   #6
-                    1,0,0,
-                    1,1,1,
-                    1,0,1,
-                    1,1,1],
-                  [ 1,1,1,   #7
-                    0,0,1,
-                    0,0,1,
-                    0,0,1,
-                    0,0,1],
-                  [ 1,1,1,   #8
-                    1,0,1,
-                    1,1,1,
-                    1,0,1,
-                    1,1,1],
-                  [ 1,1,1,   #9
-                    1,0,1,
-                    1,1,1,
-                    0,0,1,
-                    0,0,1]
-                  ]
-   
-   DIGNUM_8_5 = [
-                  [ 1,1,1,1,1,   #0
-                    1,1,1,1,1,
-                    1,1,0,1,1,
-                    1,1,0,1,1,
-                    1,1,0,1,1,
-                    1,1,0,1,1,
-                    1,1,1,1,1,
-                    1,1,1,1,1],
-                  [ 0,0,1,1,0,   #1
-                    1,1,1,1,0,
-                    1,1,1,1,0,
-                    0,0,1,1,0,
-                    0,0,1,1,0,
-                    0,0,1,1,0,
-                    1,1,1,1,1,
-                    1,1,1,1,1],
-                  [ 1,1,1,1,1,   #2
-                    1,1,1,1,1,
-                    0,0,0,1,1,
-                    1,1,1,1,1,
-                    1,1,1,1,1,
-                    1,1,0,0,0,
-                    1,1,1,1,1,
-                    1,1,1,1,1],
-                  [ 1,1,1,1,1,   #3
-                    1,1,1,1,1,
-                    0,0,0,1,1,
-                    1,1,1,1,1,
-                    1,1,1,1,1,
-                    0,0,0,1,1,
-                    1,1,1,1,1,
-                    1,1,1,1,1],
-                  [ 1,1,0,1,1,   #4
-                    1,1,0,1,1,
-                    1,1,0,1,1,
-                    1,1,1,1,1,
-                    1,1,1,1,1,
-                    0,0,0,1,1,
-                    0,0,0,1,1,
-                    0,0,0,1,1],
-                  [ 1,1,1,1,1,   #5
-                    1,1,1,1,1,
-                    1,1,0,0,0,
-                    1,1,1,1,1,
-                    1,1,1,1,1,
-                    0,0,0,1,1,
-                    1,1,1,1,1,
-                    1,1,1,1,1],
-                  [ 1,1,1,1,1,   #6
-                    1,1,1,1,1,
-                    1,1,0,0,0,
-                    1,1,1,1,1,
-                    1,1,1,1,1,
-                    1,1,0,1,1,
-                    1,1,1,1,1,
-                    1,1,1,1,1],
-                  [ 1,1,1,1,1,   #7
-                    1,1,1,1,1,
-                    0,0,0,1,1,
-                    0,0,0,1,1,
-                    0,0,0,1,1,
-                    0,0,0,1,1,
-                    0,0,0,1,1,
-                    0,0,0,1,1],
-                  [ 1,1,1,1,1,   #8
-                    1,1,1,1,1,
-                    1,1,0,1,1,
-                    1,1,1,1,1,
-                    1,1,1,1,1,
-                    1,1,0,1,1,
-                    1,1,1,1,1,
-                    1,1,1,1,1],
-                  [ 1,1,1,1,1,   #9
-                    1,1,1,1,1,
-                    1,1,0,1,1,
-                    1,1,1,1,1,
-                    1,1,1,1,1,
-                    0,0,0,1,1,
-                    0,0,0,1,1,
-                    0,0,0,1,1],
-                  [ 0,0,0,0,0,   #:
-                    0,1,1,0,0,
-                    0,1,1,0,0,
-                    0,0,0,0,0,
-                    0,0,0,0,0,
-                    0,1,1,0,0,
-                    0,1,1,0,0,
-                    0,0,0,0,0]
-                  ]
+   #Import Constants for Fonts and Words
+   from clockAppConsts import *  
+ 
    ID = "CLOCK"
    dying = False
-   appPollTime = 0.1
-   rxCmdPollTime = 0.02   
+   appPollTime = 0.1    #10Hz
+   rxCmdPollTime = 0.02 #50Hz  
    forceUpdate = False
 
-   #clockMode = "word0"
-   clockMode = "dig2"
+   clockMode = "word0"
+   #clockMode = "dig2"
    #clockMode = "dig1"
    #clockMode = "dig0"
    
@@ -257,7 +42,6 @@ class clockApp(threading.Thread):
   
    def __init__(self,txCmdQueue,rxCmdQueue):
       threading.Thread.__init__(self) #MagicT
-      self.dying = False
       self.txCmdQueue = txCmdQueue
       self.rxCmdQueue = rxCmdQueue
       self.start()
@@ -310,20 +94,20 @@ class clockApp(threading.Thread):
       if not self.dying: threading.Timer(self.appPollTime, self.__appPoll).start() #App Poller
    
    def __framePush(self, frame):
-      self.txCmdQueue.put({'dst': "IFACE",
+      self.txCmdQueue.put({'dst': "DISP",
                            'src': self.ID,
                            'typ': "frame",
                            'dat': frame})
    
    def __CreateTimeFrame(self, frame, hour, mins, mode, colour ):
       if mode == "word0":
-         self.__CreateTimeFrameWord(frame, hour, mins, colour, 0)
+         self.__CreateWordTimeFrame(frame, hour, mins, colour, 0)
       if mode == "dig0":
-         self.__CreateTimeFrameDigital(frame, hour, mins, colour)
+         self.__CreateDigitalTimeFrame(frame, hour, mins, colour)
       if mode == "dig2":
-         self.__CreateTimeFrameMegaDigital(frame, hour, mins, colour)
+         self.__CreateMegaDigitalTimeFrame(frame, hour, mins, colour)
    
-   def __CreateTimeFrameDigital(self, frame, hour, mins, colour):
+   def __CreateDigitalTimeFrame(self, frame, hour, mins, colour):
       font_size = (5,3)
       font_space = 1
       char = [hour / 10, hour % 10, mins / 10, mins % 10]
@@ -338,7 +122,7 @@ class clockApp(threading.Thread):
          if ci == 1: ptr_x += 1 #add extra space for mins to hours
          ptr_x += font_size[1]+font_space
    
-   def __CreateTimeFrameMegaDigital(self, frame, hour, mins, colour):
+   def __CreateMegaDigitalTimeFrame(self, frame, hour, mins, colour):
       font_size = (8,5)
       font_space = 1
       char = [hour / 10, hour % 10,10, mins / 10, mins % 10]
@@ -353,9 +137,9 @@ class clockApp(threading.Thread):
          ptr_x += font_size[1]+font_space
          if ci == 2: # After Colon Jump Next Line
             ptr_x = 5
-            ptr_y = 8 
+            ptr_y = 9 
    
-   def __CreateTimeFrameWord(self, frame, hour, mins, colour, subMode):
+   def __CreateWordTimeFrame(self, frame, hour, mins, colour, subMode):
       #PRE TIME
       for word in self.PRE_TIME[1]:
          frameLib.DrawFrameHLine(frame, word['x'], word['y'], word['len'], colour)
