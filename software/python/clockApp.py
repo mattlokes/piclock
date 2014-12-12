@@ -147,14 +147,106 @@ class clockApp(threading.Thread):
                     0,0,1]
                   ]
    
+   DIGNUM_8_5 = [
+                  [ 1,1,1,1,1,   #0
+                    1,1,1,1,1,
+                    1,1,0,1,1,
+                    1,1,0,1,1,
+                    1,1,0,1,1,
+                    1,1,0,1,1,
+                    1,1,1,1,1,
+                    1,1,1,1,1],
+                  [ 0,0,1,1,0,   #1
+                    1,1,1,1,0,
+                    1,1,1,1,0,
+                    0,0,1,1,0,
+                    0,0,1,1,0,
+                    0,0,1,1,0,
+                    1,1,1,1,1,
+                    1,1,1,1,1],
+                  [ 1,1,1,1,1,   #2
+                    1,1,1,1,1,
+                    0,0,0,1,1,
+                    1,1,1,1,1,
+                    1,1,1,1,1,
+                    1,1,0,0,0,
+                    1,1,1,1,1,
+                    1,1,1,1,1],
+                  [ 1,1,1,1,1,   #3
+                    1,1,1,1,1,
+                    0,0,0,1,1,
+                    1,1,1,1,1,
+                    1,1,1,1,1,
+                    0,0,0,1,1,
+                    1,1,1,1,1,
+                    1,1,1,1,1],
+                  [ 1,1,0,1,1,   #4
+                    1,1,0,1,1,
+                    1,1,0,1,1,
+                    1,1,1,1,1,
+                    1,1,1,1,1,
+                    0,0,0,1,1,
+                    0,0,0,1,1,
+                    0,0,0,1,1],
+                  [ 1,1,1,1,1,   #5
+                    1,1,1,1,1,
+                    1,1,0,0,0,
+                    1,1,1,1,1,
+                    1,1,1,1,1,
+                    0,0,0,1,1,
+                    1,1,1,1,1,
+                    1,1,1,1,1],
+                  [ 1,1,1,1,1,   #6
+                    1,1,1,1,1,
+                    1,1,0,0,0,
+                    1,1,1,1,1,
+                    1,1,1,1,1,
+                    1,1,0,1,1,
+                    1,1,1,1,1,
+                    1,1,1,1,1],
+                  [ 1,1,1,1,1,   #7
+                    1,1,1,1,1,
+                    0,0,0,1,1,
+                    0,0,0,1,1,
+                    0,0,0,1,1,
+                    0,0,0,1,1,
+                    0,0,0,1,1,
+                    0,0,0,1,1],
+                  [ 1,1,1,1,1,   #8
+                    1,1,1,1,1,
+                    1,1,0,1,1,
+                    1,1,1,1,1,
+                    1,1,1,1,1,
+                    1,1,0,1,1,
+                    1,1,1,1,1,
+                    1,1,1,1,1],
+                  [ 1,1,1,1,1,   #9
+                    1,1,1,1,1,
+                    1,1,0,1,1,
+                    1,1,1,1,1,
+                    1,1,1,1,1,
+                    0,0,0,1,1,
+                    0,0,0,1,1,
+                    0,0,0,1,1],
+                  [ 0,0,0,0,0,   #:
+                    0,1,1,0,0,
+                    0,1,1,0,0,
+                    0,0,0,0,0,
+                    0,0,0,0,0,
+                    0,1,1,0,0,
+                    0,1,1,0,0,
+                    0,0,0,0,0]
+                  ]
    ID = "CLOCK"
    dying = False
    appPollTime = 0.1
    rxCmdPollTime = 0.02   
    forceUpdate = False
 
-   #clockMode = "word"
-   clockMode = "dig0"
+   #clockMode = "word0"
+   clockMode = "dig2"
+   #clockMode = "dig1"
+   #clockMode = "dig0"
    
    frame = []
    timeColour = frameLib.GREEN  #Default Colour
@@ -229,22 +321,42 @@ class clockApp(threading.Thread):
       if mode == "word0":
          self.__CreateTimeFrameWord(frame, hour, mins, colour, 0)
       if mode == "dig0":
-         self.__CreateTimeFrameDigital(frame, hour, mins, colour, 0)
+         self.__CreateTimeFrameDigital(frame, hour, mins, colour)
+      if mode == "dig2":
+         self.__CreateTimeFrameMegaDigital(frame, hour, mins, colour)
    
-   def __CreateTimeFrameDigital(self, frame, hour, mins, colour, subMode):
+   def __CreateTimeFrameDigital(self, frame, hour, mins, colour):
+      font_size = (5,3)
+      font_space = 1
       char = [hour / 10, hour % 10, mins / 10, mins % 10]
       ptr_x = 0
       ptr_y = 5
       for ci in range(0,len(char)):
          c = char[ci]
-         for i in range(0,5):
-            for j in range(0,3):
-               if self.DIGNUM_5_3[c][(i*3)+j] == 1:
+         for i in range(0,font_size[0]):
+            for j in range(0,font_size[1]):
+               if self.DIGNUM_5_3[c][(i*font_size[1])+j] == 1:
                   self.frameLib.DrawFramePixel(frame, ptr_x+j, ptr_y+i, colour)
          if ci == 1: ptr_x += 1 #add extra space for mins to hours
-         ptr_x += 4
-
-
+         ptr_x += font_size[1]+font_space
+   
+   def __CreateTimeFrameMegaDigital(self, frame, hour, mins, colour):
+      font_size = (8,5)
+      font_space = 1
+      char = [hour / 10, hour % 10,10, mins / 10, mins % 10]
+      ptr_x = 0
+      ptr_y = 0
+      for ci in range(0,len(char)):
+         c = char[ci]
+         for i in range(0,font_size[0]):
+            for j in range(0,font_size[1]):
+               if self.DIGNUM_8_5[c][(i*font_size[1])+j] == 1:
+                  self.frameLib.DrawFramePixel(frame, ptr_x+j, ptr_y+i, colour)
+         ptr_x += font_size[1]+font_space
+         if ci == 2: # After Colon Jump Next Line
+            ptr_x = 5
+            ptr_y = 8 
+   
    def __CreateTimeFrameWord(self, frame, hour, mins, colour, subMode):
       #PRE TIME
       for word in self.PRE_TIME[1]:
@@ -279,7 +391,7 @@ class clockApp(threading.Thread):
          self.frameLib.DrawFrameHLine(frame, word['x'], word['y'], word['len'], colour)
       
       #TOD_WORDS
-      if mode == "TOD":
+      if subMode == "1":
          if (hour < 12): tod = 2
          elif ( hour < 18): tod = 3
          elif ( hour < 21): tod = 4

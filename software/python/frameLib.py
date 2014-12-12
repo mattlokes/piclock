@@ -43,7 +43,10 @@ def DrawFramePixel ( frame, x , y, colour):
    if len(frame) != 256:
       print "SFP - INVALID FRAME"
    else:
-      frame[(y*16)+x] = colour
+      if x < 16 and y < 16: 
+         frame[(y*16)+x] = colour
+      else:
+         pass #Silently Ignore
 
 def DrawFrameHLine ( frame, x, y, ln , colour):
    if len(frame) != 256:
@@ -103,7 +106,7 @@ def debugFrameLetterPrint ( frame ):
    if len(frame) != 256:
       print "DFP - INVALID FRAME"
    else:
-      print "-----------------------------------"
+      print " --------------------------------- "
       for i in range(0,16): #x
          sys.stdout.write('| ')
          for j in range(0,16):#y
@@ -113,4 +116,4 @@ def debugFrameLetterPrint ( frame ):
                sys.stdout.write(LETTERGRID[(i*16)+j])
             sys.stdout.write(' ')
          sys.stdout.write('|\n')
-      print "-----------------------------------"
+      print " --------------------------------- "
