@@ -1,13 +1,12 @@
 import Queue
 import time
-import frameLib
 import signal
 import sys
 
-import hwInterface
-import wsInterface
+from interfaces.hwInterface import *
+from interfaces.wsInterface import *
 
-import clockApp
+from applications.clockApp.clockApp import *
 
 def sigIntHandler(signal, frame):
    global hw
@@ -33,13 +32,13 @@ if len(sys.argv) > 1:
    if "-fastRx"     in sys.argv: fastRx=True
    if "-debugRx"    in sys.argv: fastRx=False
 
-hw = hwInterface.hwInterface ( fakePipe, txPipe, fastRx, fakeSerial )
+hw = hwInterface ( fakePipe, txPipe, fastRx, fakeSerial )
 hw.startup()
 
-ca = clockApp.clockApp( txPipe, rxPipe )
+ca = clockApp( txPipe, rxPipe )
 ca.startup()
 
-ws = wsInterface.wsInterface( rxPipe )
+ws = wsInterface( rxPipe )
 ws.startup()
 
 while True :
