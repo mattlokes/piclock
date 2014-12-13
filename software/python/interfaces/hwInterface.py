@@ -49,7 +49,7 @@ class hwInterface(threading.Thread):
       self.fastRx = fastRx
       self.fakeSerial = fakeSerial
       if not self.fakeSerial:
-         ser = serial.Serial( '/dev/ttyAMA0', 460800)
+         self.ser = serial.Serial( '/dev/ttyAMA0', 460800)
       #When using debugging turn fastRx off as it turns on the serial parsing threads
       if not self.fastRx:
          self.srt = Thread(target = self.__serialRecieverThread, args = (self.srtThreadEvent, "SRT", ))
