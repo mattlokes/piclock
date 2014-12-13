@@ -40,6 +40,12 @@ class frameLib ():
       frame[:] = []
       for i in range(0,256):
          frame.append([0x00,0x00,0x00])
+
+   @staticmethod 
+   def CreateColourFrame (frame, colour):
+      frame[:] = []
+      for i in range(0,256):
+         frame.append( colour )
    
    @staticmethod 
    def DrawFramePixel ( frame, x , y, colour):
