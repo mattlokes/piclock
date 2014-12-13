@@ -19,9 +19,12 @@ class colourTestApp(threading.Thread):
    
    ID = "COLOUR"
    dying = False
-   appPollTime = 0.1    #10Hz
+   appPollTime = 0.05    #10Hz
    rxCmdPollTime = 0.02 #50Hz  
    forceUpdate = False
+
+   #colourTestMode = "colour"
+   colourTestMode = "vLineAni"
 
    frame = []
    frameColour = frameLib.GREEN
@@ -68,12 +71,14 @@ class colourTestApp(threading.Thread):
 
    # Main Application Loop
    def __appPoll(self):
-      #Update Frame
-      if self.forceUpdate:
-         frameLib.CreateBlankFrame(self.frame)
-         frameLib.CreateColourFrame( self.frame, self.frameColour )
-         self.__framePush(self.frame)
-         self.forceUpdate = False
+      if   self.colourTestMode == "vLineAni":
+         self.__generateVertLineAnimation()
+      elif self.colourTestMode == "colour":
+         if self.forceUpdate:
+            frameLib.CreateBlankFrame(self.frame)
+            frameLib.CreateColourFrame( self.frame, self.frameColour )
+            self.__framePush(self.frame)
+            self.forceUpdate = False
       
       if not self.dying: threading.Timer(self.appPollTime, self.__appPoll).start() #App Poller
    
@@ -82,4 +87,24 @@ class colourTestApp(threading.Thread):
                            'src': self.ID,
                            'typ': "frame",
                            'dat': frame})
+
+   def __generateVertLineAnimation( self ):
+      animationDelay = 20
+      self.tickCount += 1
+      if self.tickCount >= animationDelay:
+         tickBase = self.tickCount - animationDelay
+         tickX = tickBase / 16
+         tickY = tickBase % 16
+         colPtr = tickX % 3
+         if colPtr == 0:
+            frameLib.DrawFramePixel(self.frame, tickX, tickY, frameLib.RED)
+         elif colPtr == 1:
+            frameLib.DrawFramePixel(self.frame, tickX, tickY, frameLib.GREEN)
+         elif colPtr == 2:
+            frameLib.DrawFramePixel(self.frame, tickX, tickY, frameLib.BLUE)
+         self.__framePush(self.frame)
+         
+         if self.tickCount >= animationDelay + 256:
+            frameLib.CreateBlankFrame( self.frame )
+            self.tickCount = 0
    
