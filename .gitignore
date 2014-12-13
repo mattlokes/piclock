@@ -1,3 +1,4 @@
 # Python Byte Code Nonesene #
-#############################
 *.pyc
+#Webserver Temp Directory #
+software/python/framework/webserver/temp/*
