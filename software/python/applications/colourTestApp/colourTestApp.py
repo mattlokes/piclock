@@ -19,7 +19,7 @@ class colourTestApp(threading.Thread):
    
    ID = "COLOUR"
    dying = False
-   appPollTime = 0.05    #10Hz
+   appPollTime = 0.02    #10Hz
    rxCmdPollTime = 0.02 #50Hz  
    forceUpdate = False
 
@@ -96,6 +96,10 @@ class colourTestApp(threading.Thread):
          tickX = tickBase / 16
          tickY = tickBase % 16
          colPtr = tickX % 3
+         dirPtr = tickX % 2
+        
+         if dirPtr == 1: tickY = 15 - tickY
+
          if colPtr == 0:
             frameLib.DrawFramePixel(self.frame, tickX, tickY, frameLib.RED)
          elif colPtr == 1:
