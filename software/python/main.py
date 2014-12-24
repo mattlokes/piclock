@@ -73,11 +73,12 @@ for name, module in modules.iteritems():
 while True:
    for name, module in modules.iteritems():
       try:
-         msg = module['txPipe'].get(timeout=0.01)
+         msg = module['txPipe'].get(block=False)
       except:
          pass
       else:
          modules[msg['dst']]['rxPipe'].put(msg)
+   time.sleep(0.01)
 
 ###########################################
 #wbs = webServer()

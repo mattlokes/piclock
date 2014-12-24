@@ -32,7 +32,8 @@ class clockApp(threading.Thread):
    #clockMode = "dig0"
    
    frame = []
-   timeColour = frameLib.GREEN  #Default Colour
+   timeColour = [0x00,0xFF,0x00]  #Default Colour
+   #timeColour = [0x12,0xD7,0xFF]  #Default Colour
    timeHistory=""
 
    # cmdPacket:   { 'dst': 'CLOCK',     'src':<packetSrc> 'typ': <cmdType>, 'dat': <cmdData> }
