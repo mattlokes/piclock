@@ -1,61 +1,47 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="">
+    <meta name="author" content="">
 
-<head>
-<style>
-#header {
-    font: 15px verdana, sans-serif;
-    background-color:black;
-    color:white;
-    text-align:center;
-    padding:5px;
-}
-#nav {
-    font: 15px verdana, sans-serif;
-    line-height:30px;
-    background-color:#eeeeee;
-    height:300px;
-    width:200px;
-    float:left;
-    padding:20px;	      
-}
-#section {
-    font: 15px verdana, sans-serif;
-    width:350px;
-    float:left;
-    padding:10px;	 	 
-}
-#footer {
-    font: 15px verdana, sans-serif;
-    background-color:black;
-    color:white;
-    clear:both;
-    text-align:center;
-   padding:5px;	 	 
-}
-</style>
-</head>
+    <title>Matt's RGB WordClock</title>
 
-<body>
+    <!-- Bootstrap core CSS -->
+    <link href="//netdna.bootstrapcdn.com/bootstrap/3.1.1/css/bootstrap.min.css" rel="stylesheet">
+    <link href="/navmenu/css/jasny-bootstrap.min.css" rel="stylesheet">
 
-<div id="header">
-<h1>PiClock</h1>
-</div>
+    <!-- Custom styles for this template -->
+    <link href="/navmenu/css/navmenu-push.css" rel="stylesheet">
 
-<div id="nav">
-<h3>Mode</h3>
-Clock<br>
-----<br>
-----<br>
-</div>
+  </head>
 
-<div id="section">
-<h2>Clock</h2>
-</div>
+  <body>
+    <!-- NavMenu -->
+    <script type="text/javascript" src="includes/navmenu.js"> </script>    
+    
+    <!-- Status Body -->
+    <div class="container">
+      <div class="page-header">
+        <h1>Status</h1>
+      </div>
+      <p class="lead">Hello World</p>
+      <p> test <hr> </p>
+      <p> test <hr> </p>
+      <p> test <hr> </p>
+    </div>
 
-<div id="footer">
-By Matt
-</div>
+    <!-- JS for Page -->
+    <script type="text/javascript"> document.getElementById("nav-status").className += "active"; </script>
 
-</body>
+
+    <!-- Bootstrap core JavaScript
+    ================================================== -->
+    <!-- Placed at the end of the document so the pages load faster -->
+    <script src="https://code.jquery.com/jquery-1.10.2.min.js"></script>
+    <script src="//netdna.bootstrapcdn.com/bootstrap/3.1.1/js/bootstrap.min.js"></script>
+    <script src="navmenu/js/jasny-bootstrap.min.js"></script>
+    <!-- <script src="navmenu/js/offcanvas.js"></script> -->
+  </body>
 </html>
