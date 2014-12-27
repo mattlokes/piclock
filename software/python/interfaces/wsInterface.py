@@ -36,7 +36,7 @@ class WSHandler(tornado.websocket.WebSocketHandler):
     
 class wsInterface(threading.Thread):
    
-   ID = "WSINTER"
+   ID = "WEBSOCK"
    dying = False
    
    # framePacket: { 'dst': <packetDst>, 'src': 'CLOCK'    'dat': <frameData> }
