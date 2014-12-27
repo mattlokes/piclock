@@ -10,6 +10,7 @@
 #include <stdint.h>
 #include <plib.h>
 
+#include "colour_map.h"
 #include "splash_img.h"
 
 #pragma config FPLLMUL = MUL_20, FPLLIDIV = DIV_2, FPLLODIV = DIV_1, FWDTEN = OFF
@@ -163,6 +164,8 @@ inline void pfbDrawFont( uint32_t * pfb , uint8_t x0, uint8_t x1, uint8_t letter
 
 }
 
+
+
 /*ActivePaddedFrames
  * Holds 2 *Uncompressed* Frames ready to be sent via SPI to LED Matrix
  * This takes into account all the extra padding needed for unused PWM channels
@@ -208,6 +211,14 @@ for (i = 0; i<2; i++)
     }
 }
 
+inline uint32_t colorMap8_8Func (uint32_t a) {
+    uint32_t tmpR, tmpG, tmpB;
+    tmpR = colorMap8_8[(a & 0xFF000000) >> 24];
+    tmpG = colorMap8_8[(a & 0x000FF000) >> 12];
+    tmpB = colorMap8_8[ a & 0x000000FF];
+    return tmpB | tmpG << 12 | tmpR << 24;
+}
+
 void apfPack(uint32_t* unpadded_i, uint32_t* padded_o) {
     //Needs to be quick! Use Shifting instead of multiply.
     uint8_t row = 0; //Row of Leds
@@ -219,13 +230,13 @@ void apfPack(uint32_t* unpadded_i, uint32_t* padded_o) {
         for (set = 0; set < 4; set++){
             o_index_base = mul25lu[row] + mul6lu[set];
             i_index_base = (row<<4) + (set<<2);
-            padded_o[o_index_base]    = unpadded_i[i_index_base+3];
-            padded_o[o_index_base+1]  = unpadded_i[i_index_base+2] << 4;
-            padded_o[o_index_base+2]  = unpadded_i[i_index_base+2] >> 28;
-            padded_o[o_index_base+2] |= unpadded_i[i_index_base+1] << 8;
-            padded_o[o_index_base+3]  = unpadded_i[i_index_base+1] >> 24;
-            padded_o[o_index_base+3] |= unpadded_i[i_index_base] << 12;
-            padded_o[o_index_base+4]  = unpadded_i[i_index_base] >> 20;
+            padded_o[o_index_base]    = colorMap8_8Func (unpadded_i[i_index_base+3]);
+            padded_o[o_index_base+1]  = colorMap8_8Func (unpadded_i[i_index_base+2]) << 4;
+            padded_o[o_index_base+2]  = colorMap8_8Func (unpadded_i[i_index_base+2]) >> 28;
+            padded_o[o_index_base+2] |= colorMap8_8Func (unpadded_i[i_index_base+1]) << 8;
+            padded_o[o_index_base+3]  = colorMap8_8Func (unpadded_i[i_index_base+1]) >> 24;
+            padded_o[o_index_base+3] |= colorMap8_8Func (unpadded_i[i_index_base]) << 12;
+            padded_o[o_index_base+4]  = colorMap8_8Func (unpadded_i[i_index_base]) >> 20;
         }
 
 }
@@ -467,12 +478,6 @@ inline void rowSelector(uint8_t row){
         default:                                                  break;
 
     }
-}
-
-inline void uint32Str(uint32_t val, char* buff){
-    //char tmp [9];
-    itoa (val, buff, 16);
-    //strncpy(tmp, buff, 8);
 }
 
 // Row Refresh Interrupt Handler
