@@ -2,3 +2,7 @@
 *.pyc
 #Webserver Temp Directory #
 software/python/framework/webserver/temp/*
+#Useless Pic32 Build Files to be ignore
+software/pic32/wordclock.X/build/*
+software/pic32/wordclock.X/dist/default/production/wordclock.X.production.elf
+software/pic32/wordclock.X/dist/default/production/wordclock.X.production.map
