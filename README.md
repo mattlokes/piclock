@@ -1,4 +1,4 @@
-piclock
+WordClock
 =======
 
-RGB Colour Word Clock, Powered by a Raspberry Pi with matrix display capabilities.
+RGB Colour Word Clock, Powered by a Raspberry Pi/Similar Embedded Linux Board with matrix display capabilities.
