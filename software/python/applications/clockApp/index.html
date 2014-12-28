@@ -101,9 +101,10 @@
 
 <script type="text/javascript" src="http://l2.io/ip.js?var=myip"></script>
 <script>
-var wsUri = "ws://192.168.1.113:5005/ws";
+var wsUri = "ws://192.168.1.83:5005/ws";
 var output;
-var colval = "";
+var colval = document.getElementById('col').value;
+//var colval = ""
 var nInit = 0;
 var sendTimerObj;
 var DEPRICATE = 1;
@@ -128,8 +129,8 @@ function timerfun()
   if(document.getElementById('col').value != colval)
   { 
     colval = document.getElementById('col').value;
-    document.getElementById('col').value = colval;
-    doSend("#CLOCK#COLOR#"+colval+"#");
+    //document.getElementById('col').value = colval;
+    doSend("#CLOCK#COLOR#"+colval.split("#")[1]+"#");
   }
 }
 

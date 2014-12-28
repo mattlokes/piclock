@@ -8,7 +8,7 @@ document.write("        <li id=\"nav-clock\"><a href=\"/applications/clockApp/\"
 document.write("        <li id=\"nav-color\"><a href=\"/applications/colourTestApp/\">ColourTest</a></li>");
 document.write("      </ul>");
 document.write("      <ul class=\"nav navmenu-nav\">");
-document.write("        <li id=\"nav-settings\"><a href=\"#\"><b>Settings</b></a></li>");
+document.write("        <li id=\"nav-settings\"><a href=\"/globalSettings/\"><b>Global Settings</b></a></li>");
 document.write("      </ul>");
 document.write("    </div>");
 document.write("");
