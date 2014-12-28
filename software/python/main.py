@@ -1,7 +1,9 @@
 import Queue
 import time
 import signal
-import sys
+from sys import *
+
+from libraries.systemLib import *
 
 from framework.webserver.webServer import *
 
@@ -12,42 +14,58 @@ from applications.clockApp.clockApp import *
 from applications.colourTestApp.colourTestApp import *
 
 def sigIntHandler(signal, frame):
-   print " SigInt"
-   time.sleep(2)
-   sys.exit(0)
+   print ""
+   killModules()
+   #time.sleep(2)
+   exit(0)
+
+def killModules():
+   for name, module in modules.iteritems():
+      if module['state'] is "R":
+         if name is not "WEBSOCK" and "rxPipe" in module.keys(): #If Module is running and rxPipe send KILL Msg
+            module['rxPipe'].put({'dst':name, 'src':"MAIN", 'typ':"KILL", 'dat':0})
+         else:                         #Else Use Kill Function
+            module['obj'].kill()
 
 fakeSerial=False
 fastRx=True
+noDisp=False
+debugSys=False
 
 signal.signal(signal.SIGINT, sigIntHandler)
 
-
 if len(sys.argv) > 1:
-   if "-fakeSerial" in sys.argv: fakeSerial=True
-   if "-fastRx"     in sys.argv: fastRx=True
-   if "-debugRx"    in sys.argv: fastRx=False
+   if "-termDisp" in sys.argv: fakeSerial=True
+   if "-noDisp"   in sys.argv: noDisp=True
+   if "-debugRx"  in sys.argv: fastRx=False
+   if "-debugSys" in sys.argv: debugSys=True
 
+sys = sysPrint("MAIN", debugSys)
+
+# Module State: R=Running, I=Initialized & P=Paused
 modules = {
            'DISP': 
-           {'class':"hwInterface", 'state': "running", 'obj': None,
-            'txPipe': None, 'rxPipe': None, 'args': [fastRx, fakeSerial] },
+           {'class':"hwInterface", 'state': "R", 'obj': None,
+            'txPipe': None, 'rxPipe': None, 'args': [fastRx, fakeSerial,debugSys] },
            'WEBSOCK':
-           {'class':"wsInterface", 'state': "running", 'obj': None,
-            'txPipe': None },
+           {'class':"wsInterface", 'state': "R", 'obj': None,
+            'txPipe': None, 'rxPipe': None, 'args': [debugSys] },
            'WEBSERVER': 
-           {'class':"webServer", 'state': "running", 'obj': None},
+           {'class':"webServer", 'state': "R", 'obj': None },
            'CLOCK':
-           {'class':"clockApp", 'state': "running", 'obj': None,
-            'txPipe': None, 'rxPipe': None },
+           {'class':"clockApp", 'state': "R", 'obj': None,
+            'txPipe': None, 'rxPipe': None, 'args': [debugSys] },
            'COLTEST': 
            {'class':"colourTestApp", 'state': None, 'obj': None,
-            'txPipe': None, 'rxPipe': None }
+            'txPipe': None, 'rxPipe': None, 'args': [debugSys] }
           }
+
+if noDisp: modules['DISP']['state'] = None
 
 #Go through Modules Instantiating them all and starting up
 for name, module in modules.iteritems():
    argList = []
-   if module['state'] is "running":
+   if module['state'] is "R":
       if 'txPipe' in module.keys():
          module['txPipe'] = Queue.Queue()
          argList.append(module['txPipe'])
@@ -67,10 +85,8 @@ while True:
       except:
          pass
       else:
-         modules[msg['dst']]['rxPipe'].put(msg)
+         try:
+            modules[msg['dst']]['rxPipe'].put(msg)
+         except:
+            sys.error("Cmd Destination {0} does not exist".format(msg['dst']))
    time.sleep(0.01)
-
-while True :
-   time.sleep(5)
-
-

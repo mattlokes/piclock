@@ -1,5 +1,4 @@
 import sys
-import commands
 import tornado.httpserver
 import tornado.websocket
 import tornado.ioloop
@@ -7,34 +6,58 @@ import tornado.web
 import threading 
 import time
 import re
-from collections import deque 
 
-class WSHandler(tornado.websocket.WebSocketHandler):
-   def __init__(self, *args, **kwargs):
+from libraries.systemLib import *
+
+class WSHandler( tornado.websocket.WebSocketHandler ):
+
+   dying = False
+   rxPollTime = 0.02 #50Hz
+
+   def __init__( self, *args, **kwargs ):
       super(WSHandler,self).__init__(*args, **kwargs)
 
-   def initialize(self, txCmdQueue, ID ):
-      self.fifo = txCmdQueue
+   def initialize( self, txQueue, rxQueue, debugSys, ID ):
       self.ID = ID
+      self.sys = sysPrint(self.ID, debugSys)
+      self.txQueue = txQueue
+      self.rxQueue = rxQueue
+      threading.Timer(self.rxPollTime, self.__rxPoll).start() #rxQueue Poller
    
-   def check_origin(self, origin):
+   def check_origin( self, origin ):
       return True      
    
-   def open(self):
-       print ('New Connection'),
-       self.write_message("WS_IFACE")
+   def open( self ):
+      self.sys.info("New Connection"),
+      self.write_message("WS_IFACE")
     
-   def on_message(self, message):
-       data = message
-       cmdParse = re.search(r"#(.*)#(.*)#(.*)#", data)
-       if cmdParse is not None:
-          self.fifo.put({'src': self.ID, 'dst': cmdParse.group(1), 
-                         'typ': cmdParse.group(2), 'dat': cmdParse.group(3)}) 
+   def on_message( self, message ):
+      data = message
+      cmdParse = re.search(r"#(.*)#(.*)#(.*)#", data)
+#      print "***** {0}".format(data)
+      if cmdParse is not None:
+         self.txQueue.put({'src': self.ID, 'dst': cmdParse.group(1), 
+                           'typ': cmdParse.group(2), 'dat': cmdParse.group(3)}) 
+ #        print {'src': self.ID, 'dst': cmdParse.group(1), 'typ': cmdParse.group(2), 'dat': cmdParse.group(3)}
+   def on_close( self ):
+      self.sys.info("Connection Closed"),
 
-   def on_close(self):
-      print 'Connection Closed'
+
+   def __rxPoll(self):
+      cmd = self.rxQueue.get()
+      self.sys.rxDebug(cmd)
+
+      # Decode Incoming Cmd Packets
+      if cmd['typ'] == "KILL":
+         self.kill()
+
+      if not self.dying: threading.Timer(self.rxPollTime, self.__rxPoll).start() #rxQueue Poller
+
+
+   def kill ( self ):
+      self.dying = True
     
-class wsInterface(threading.Thread):
+class wsInterface( threading.Thread ):
    
    ID = "WEBSOCK"
    dying = False
@@ -42,32 +65,33 @@ class wsInterface(threading.Thread):
    # framePacket: { 'dst': <packetDst>, 'src': 'CLOCK'    'dat': <frameData> }
    # cmdPacket:   { 'dst': 'CLOCK',     'src':<packetSrc> 'typ': <cmdType>, 'dat': <cmdData> }
 
-   # txCmdQueue = TX Cmd Queue , (Always Push)
-   # rxCmdQueue = Rx Cmd Queue , (Always Pop)
+   # txQueue = TX Cmd Queue , (Always Push)
+   # rxQueue = Rx Cmd Queue , (Always Pop)
 
-   def __init__(self,txCmdQueue):
+   def __init__( self, txQueue, rxQueue, debugSys ):
       threading.Thread.__init__(self) #MagicT
-      self.dying = False
-      self.txCmdQueue = txCmdQueue
-      #self.rxCmdQueue = rxCmdQueue
-      #threading.Timer(self.rxCmdPollTime, self.__rxCmdPoll).start() #rxCmdQueue Poller
+      self.sys = sysPrint(self.ID, debugSys) 
+      self.txQueue = txQueue
+      self.rxQueue = rxQueue
+      self.debugSys = debugSys
       self.start()
-      print "Initializing {0} Application...".format(self.ID)
+      self.sys.info("Initializing Application...")
 
-   def startup(self):
-      print "Starting {0} Application...".format(self.ID)
+   def startup( self ):
+      self.sys.info("Starting Application...")
       self.application = tornado.web.Application([(r'/ws', WSHandler, 
-      { "txCmdQueue": self.txCmdQueue , "ID": self.ID}),])
+      { "txQueue": self.txQueue, "rxQueue":self.rxQueue, "debugSys": self.debugSys, "ID": self.ID }),])
       self.http_server = tornado.httpserver.HTTPServer(self.application)
       self.http_server.listen(5005)
       threading.Timer(0.001, self.__tornadoStart).start() #Start Tornado frome seperate instance
    
-   def __tornadoStart(self):
+   def __tornadoStart( self ):
       tornado.ioloop.IOLoop.instance().start()
 
 
-   def kill(self):
+   def kill( self ):
       self.dying = True
       tornado.ioloop.IOLoop.instance().stop()
       time.sleep(0.1)
-      print "Stopping {0} Application...".format(self.ID)
+      self.rxQueue.put({'dst':"WEBSOCK",'src':"WEBSOCK",'typ':"KILL",'dat':0}) #HACK TO KILL WSHANDLER
+      self.sys.info("Stopping Application...")
