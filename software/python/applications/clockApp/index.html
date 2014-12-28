@@ -51,13 +51,13 @@
         <label for="mode" class="control-label input-group"></label>
         <div class="btn-group col-xs-9" data-toggle="buttons">
           <label class="btn btn-default active">
-            <input type="radio" name="mode" value="word" checked="">Word
+            <input type="radio" name="mode" id="mode_word" checked="">Word
           </label>
           <label class="btn btn-default">
-            <input type="radio" name="mode" value="dig0">Digital
+            <input type="radio" name="mode" id="mode_dig0">Digital
           </label>
           <label class="btn btn-default">
-            <input type="radio" name="mode" value="dig2">Big Digital
+            <input type="radio" name="mode" id="mode_dig2">Big Digital
           </label>
         </div>
       </div>
@@ -68,11 +68,11 @@
           <p class="lead">Suffix Words*:</p>
         </div>
         <div class="col-xs-9">
-          <input type="checkbox" id="tod" ></p>
+          <input type="checkbox" id="suffix" ></p>
         </div>
         <link href="/bootstrap-switch/bootstrap-switch.css" rel="stylesheet">
         <script src="/bootstrap-switch/bootstrap-switch.js"></script>
-        <script type="text/javascript"> $("#tod").bootstrapSwitch(); </script>
+        <script type="text/javascript"> $("#suffix").bootstrapSwitch(); </script>
       </div>
       <div><hr></div>
       
@@ -104,7 +104,8 @@
 var wsUri = "ws://192.168.1.83:5005/ws";
 var output;
 var colval = document.getElementById('col').value;
-//var colval = ""
+var modeVal = "";
+var todVal = "";
 var nInit = 0;
 var sendTimerObj;
 var DEPRICATE = 1;
@@ -132,6 +133,27 @@ function timerfun()
     //document.getElementById('col').value = colval;
     doSend("#CLOCK#COLOR#"+colval.split("#")[1]+"#");
   }
+ 
+  var tmpMode;
+  if(document.getElementById('mode_word').checked) { tmpMode = "WORD"; }
+  if(document.getElementById('mode_dig0').checked) { tmpMode = "DIG0"; }
+  if(document.getElementById('mode_dig2').checked) { tmpMode = "DIG2"; }
+  if(tmpMode != modeVal)
+  {
+    modeVal = tmpMode;
+    doSend("#CLOCK#MODE#"+modeVal+"#");
+  }
+
+  var tmpTod = "NONE";
+  if(document.getElementById('suffix').checked) { tmpTod = "SUFFIX"; }
+  if(document.getElementById('ampm').checked) { tmpTod = "AMPM"; }
+  if(tmpTod != todVal)
+  {
+    todVal = tmpTod;
+    doSend("#CLOCK#TOD#"+todVal+"#");
+  }
+
+  
 }
 
 function onOpen(evt) 

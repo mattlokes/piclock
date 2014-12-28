@@ -52,7 +52,9 @@ MIN_WORDS =[
            [{'x':2,'y':7,'len':7},{'x':11,'y':7,'len':4}], #MINUTES PAST
            [{'x':2,'y':7,'len':7},{'x':1,'y':8,'len':2}],  #MINUTES TO
            [{'x':11,'y':7,'len':4}],                       #PAST
-           [{'x':1,'y':8,'len':2}]                         #TO
+           [{'x':1,'y':8,'len':2}],                        #TO
+           [{'x':2,'y':7,'len':6},{'x':11,'y':7,'len':4}], #MINUTE PAST
+           [{'x':2,'y':7,'len':6},{'x':1,'y':8,'len':2}]   #MINUTE TO
            ]
 
 HOUR_NUM =[

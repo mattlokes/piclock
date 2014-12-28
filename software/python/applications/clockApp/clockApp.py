@@ -27,10 +27,8 @@ class clockApp( threading.Thread ):
    rxPollTime = 0.02 #50Hz  
    forceUpdate = False
 
-   clockMode = "word0"
-   #clockMode = "dig2"
-   #clockMode = "dig1"
-   #clockMode = "dig0"
+   clockMode = "WORD"
+   todMode = 0
    
    frame = []
    timeColour = [0x00,0xFF,0x00]  #Default Colour
@@ -77,6 +75,14 @@ class clockApp( threading.Thread ):
       
       # Time Format Change
       if cmd['typ'] == "MODE":
+         self.clockMode = cmd['dat']
+         self.forceUpdate = True
+
+      if cmd['typ'] == "TOD":
+         if cmd['dat'] == "SUFFIX": self.todMode = 1
+         elif cmd['dat'] == "AMPM": self.todMode = 2
+         else:                      self.todMode = 0
+         
          self.forceUpdate = True
 
       if cmd['typ'] == "KILL":
@@ -107,11 +113,11 @@ class clockApp( threading.Thread ):
                            'dat': frame})
    
    def __CreateTimeFrame(self, frame, hour, mins, mode, colour ):
-      if mode == "word0":
-         self.__CreateWordTimeFrame(frame, hour, mins, colour, 0)
-      if mode == "dig0":
+      if mode == "WORD":
+         self.__CreateWordTimeFrame(frame, hour, mins, colour, self.todMode)
+      if mode == "DIG0":
          self.__CreateDigitalTimeFrame(frame, hour, mins, colour)
-      if mode == "dig2":
+      if mode == "DIG2":
          self.__CreateMegaDigitalTimeFrame(frame, hour, mins, colour)
    
    def __CreateDigitalTimeFrame(self, frame, hour, mins, colour):
@@ -165,11 +171,13 @@ class clockApp( threading.Thread ):
       #MIN_WORDS
       if mins != 0:
          if (mins > 30):
-            if mins == 45: mw = 3 #TO
-            else: mw = 1          #MINS TO
+            if mins == 45: mw = 3   #TO
+            elif mins == 59: mw = 5 #MIN TO
+            else: mw = 1            #MINS TO
          else:
             if mins == 15 or mins == 30: mw = 2  #PAST
-            else: mw = 0                        #MINS PAST
+            elif mins == 1: mw = 4                #MIN PAST
+            else: mw = 0                         #MINS PAST
          for word in self.MIN_WORDS[mw]:
             frameLib.DrawFrameHLine(frame, word['x'], word['y'], word['len'], colour)
       
@@ -180,11 +188,17 @@ class clockApp( threading.Thread ):
          frameLib.DrawFrameHLine(frame, word['x'], word['y'], word['len'], colour)
       
       #TOD_WORDS
-      if subMode == "1":
+      if subMode == 1:
          if (hour < 12): tod = 2
          elif ( hour < 18): tod = 3
          elif ( hour < 21): tod = 4
          else: tod = 5
          for word in self.TOD_WORDS[tod]:
             frameLib.DrawFrameHLine(frame, word['x'], word['y'], word['len'], colour)
-
+      
+      #TOD_WORDS (AM/PM)
+      if subMode == 2:
+         if (hour < 12): tod = 0
+         else: tod = 1
+         for word in self.TOD_WORDS[tod]:
+            frameLib.DrawFrameHLine(frame, word['x'], word['y'], word['len'], colour)
