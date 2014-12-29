@@ -8,14 +8,14 @@
 #
 #=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
 
-import Queue
-import threading
 import datetime
+
+from framework.components.application import *
 
 from libraries.frameLib import *
 from libraries.systemLib import *
 
-class clockApp( threading.Thread ):
+class clockApp():
    
    #Import Constants for Fonts and Words
    from clockAppConsts import *  
@@ -24,9 +24,7 @@ class clockApp( threading.Thread ):
    appPollTime = 0.1    #10Hz
    rxPollTime = 0.02 #50Hz  
    
-   dying = False
    forceUpdate = False
-   pauseApp = False
 
    clockMode = "WORD"
    todMode = 0
@@ -36,101 +34,66 @@ class clockApp( threading.Thread ):
    #timeColour = [0x12,0xD7,0xFF]  #Default Colour
    timeHistory=""
 
-   # cmdPacket:   { 'dst': 'CLOCK',     'src':<packetSrc> 'typ': <cmdType>, 'dat': <cmdData> }
-  
-   # txQueue = TX Cmd Queue , (Always Push)
-   # rxQueue = Rx Cmd Queue , (Always Pop)
-  
-   def __init__(self,txQueue,rxQueue, debugSys):
-      threading.Thread.__init__(self) #MagicT
-      self.sys = sysPrint(self.ID, debugSys)
-      self.txQueue  = txQueue
-      self.rxQueue  = rxQueue
-      self.debugSys = debugSys
-      self.start()
-      self.sys.info("Initializing Application...")
+   def __init__(self, parent, **kwargs):
+      self.parent = parent
 
    def startup(self):
       frameLib.CreateBlankFrame(self.frame)
       self.forceUpdate = True
-      threading.Timer(self.rxPollTime, self.__rxPoll).start() #rxQueue Poller
-      threading.Timer(self.appPollTime, self.__appPoll).start() #App Poller
-      self.sys.info("Starting Application...")
 
+   def incomingRx ( self, cmd ):
+      # Decode Incoming Cmd Packets
+      # Colour Change Command
+      if cmd['typ'] == "COLOR":
+         self.timeColour = [int(cmd['dat'][4:6],16), #R
+                            int(cmd['dat'][2:4],16), #G
+                            int(cmd['dat'][0:2],16)] #B
+         self.forceUpdate = True
+      
+      # Time Format Change
+      if cmd['typ'] == "MODE":
+         self.clockMode = cmd['dat']
+         self.forceUpdate = True
 
-   def kill(self):
-      self.dying = True
-      self.sys.info("Stopping Application...")
-
-   def pause(self):
-      self.pauseApp = True
-
-   def resume(self):
-      self.pauseApp = False
-      threading.Timer(self.appPollTime, self.__appPoll).start() #App Poller
-
-   def __rxPoll(self):
-      if not self.dying:
-         cmd = self.rxQueue.get()
-         self.sys.rxDebug(cmd)
+      if cmd['typ'] == "TOD":
+         if cmd['dat'] == "SUFFIX": self.todMode = 1
+         elif cmd['dat'] == "AMPM": self.todMode = 2
+         else:                      self.todMode = 0
          
-         # Decode Incoming Cmd Packets
-         # Colour Change Command
-         if cmd['typ'] == "COLOR":
-            self.timeColour = [int(cmd['dat'][4:6],16), #R
-                               int(cmd['dat'][2:4],16), #G
-                               int(cmd['dat'][0:2],16)] #B
-            self.forceUpdate = True
-         
-         # Time Format Change
-         if cmd['typ'] == "MODE":
-            self.clockMode = cmd['dat']
-            self.forceUpdate = True
-   
-         if cmd['typ'] == "TOD":
-            if cmd['dat'] == "SUFFIX": self.todMode = 1
-            elif cmd['dat'] == "AMPM": self.todMode = 2
-            else:                      self.todMode = 0
-            
-            self.forceUpdate = True
-   
-         if cmd['typ'] == "KILL":
-            self.kill()
-   
-         if not self.dying: threading.Timer(self.rxPollTime, self.__rxPoll).start() #rxQueue Poller
+         self.forceUpdate = True
+
+      if cmd['typ'] == "KILL":
+         self.parent.kill()
 
    # Main Application Loop
-   def __appPoll(self):
-      if not self.dying and not self.pauseApp: #App Poller
-         #Update Time
-         get_h = datetime.datetime.now().time().hour
-         get_m = datetime.datetime.now().time().minute
-         timeHistoryCompare=str(get_h)+str(get_m)
+   def appTick(self):
+      #Update Time
+      get_h = datetime.datetime.now().time().hour
+      get_m = datetime.datetime.now().time().minute
+      timeHistoryCompare=str(get_h)+str(get_m)
+
+      if self.timeHistory != timeHistoryCompare or self.forceUpdate:
+         frameLib.CreateBlankFrame(self.frame)
+         self.CreateTimeFrame( self.frame, get_h, get_m, self.clockMode, self.timeColour )
+         self.framePush(self.frame)
+         self.timeHistory=timeHistoryCompare
+         self.forceUpdate = False
    
-         if self.timeHistory != timeHistoryCompare or self.forceUpdate:
-            frameLib.CreateBlankFrame(self.frame)
-            self.__CreateTimeFrame( self.frame, get_h, get_m, self.clockMode, self.timeColour )
-            self.__framePush(self.frame)
-            self.timeHistory=timeHistoryCompare
-            self.forceUpdate = False
-         
-         if not self.dying and not self.pauseApp: threading.Timer(self.appPollTime, self.__appPoll).start() #App Poller
+   def framePush(self, frame):
+      self.parent.txQueue.put({'dst': "DISP",
+                               'src': self.ID,
+                               'typ': "FRAME",
+                               'dat': frame})
    
-   def __framePush(self, frame):
-      self.txQueue.put({'dst': "DISP",
-                           'src': self.ID,
-                           'typ': "FRAME",
-                           'dat': frame})
-   
-   def __CreateTimeFrame(self, frame, hour, mins, mode, colour ):
+   def CreateTimeFrame(self, frame, hour, mins, mode, colour ):
       if mode == "WORD":
-         self.__CreateWordTimeFrame(frame, hour, mins, colour, self.todMode)
+         self.CreateWordTimeFrame(frame, hour, mins, colour, self.todMode)
       if mode == "DIG0":
-         self.__CreateDigitalTimeFrame(frame, hour, mins, colour)
+         self.CreateDigitalTimeFrame(frame, hour, mins, colour)
       if mode == "DIG2":
-         self.__CreateMegaDigitalTimeFrame(frame, hour, mins, colour)
+         self.CreateMegaDigitalTimeFrame(frame, hour, mins, colour)
    
-   def __CreateDigitalTimeFrame(self, frame, hour, mins, colour):
+   def CreateDigitalTimeFrame(self, frame, hour, mins, colour):
       font_size = (5,3)
       font_space = 1
       char = [hour / 10, hour % 10, mins / 10, mins % 10]
@@ -145,7 +108,7 @@ class clockApp( threading.Thread ):
          if ci == 1: ptr_x += 1 #add extra space for mins to hours
          ptr_x += font_size[1]+font_space
    
-   def __CreateMegaDigitalTimeFrame(self, frame, hour, mins, colour):
+   def CreateMegaDigitalTimeFrame(self, frame, hour, mins, colour):
       font_size = (8,5)
       font_space = 1
       char = [hour / 10, hour % 10,10, mins / 10, mins % 10]
@@ -162,7 +125,7 @@ class clockApp( threading.Thread ):
             ptr_x = 5
             ptr_y = 9 
    
-   def __CreateWordTimeFrame(self, frame, hour, mins, colour, subMode):
+   def CreateWordTimeFrame(self, frame, hour, mins, colour, subMode):
       #PRE TIME
       for word in self.PRE_TIME[1]:
          frameLib.DrawFrameHLine(frame, word['x'], word['y'], word['len'], colour)

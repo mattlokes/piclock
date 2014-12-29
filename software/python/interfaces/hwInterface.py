@@ -41,14 +41,14 @@ class hwInterface( threading.Thread ):
    # txQueue = TX Cmd Queue , (Always Push)
    # rxQueue = Rx Cmd Queue , (Always Pop)
 
-   def __init__( self, txQueue, rxQueue, fastRx, fakeSerial, debugSys ):
+   def __init__( self, txQueue, rxQueue, **kwargs ):
       threading.Thread.__init__( self ) #MagicT
-      self.sys = sysPrint(self.ID, debugSys)
+      self.sys = sysPrint(self.ID, kwargs['debugSys'])
       self.txQueue = txQueue
       self.rxQueue = rxQueue
-      self.fastRx = fastRx
-      self.fakeSerial = fakeSerial
-      self.debugSys = debugSys
+      self.fastRx = kwargs['fastRx']
+      self.fakeSerial = kwargs['fakeSerial']
+      self.debugSys = kwargs['debugSys']
       if not self.fakeSerial:
          self.ser = serial.Serial( '/dev/ttyAMA0', 460800)
       #When using debugging turn fastRx off as it turns on the serial parsing threads

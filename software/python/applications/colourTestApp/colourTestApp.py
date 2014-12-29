@@ -8,21 +8,16 @@
 #
 #=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
 
-import Queue
-import threading
-
 from libraries.frameLib import *
 from libraries.systemLib import *
 
-class colourTestApp(threading.Thread):
+class colourTestApp():
    
    ID = "COLOUR"
    appPollTime = 0.02    #10Hz
    rxPollTime = 0.02 #50Hz  
    
-   dying = False
    forceUpdate = False
-   pauseApp = False
 
    #colourTestMode = "colour"
    colourTestMode = "vLineAni"
@@ -30,81 +25,48 @@ class colourTestApp(threading.Thread):
    frame = []
    frameColour = frameLib.GREEN
    tickCount = 0
-   # cmdPacket:   { 'dst': 'CLOCK',     'src':<packetSrc> 'typ': <cmdType>, 'dat': <cmdData> }
   
-   # txQueue = TX Cmd Queue , (Always Push)
-   # rxQueue = Rx Cmd Queue , (Always Pop)
-  
-   def __init__(self, txQueue, rxQueue, debugSys):
-      threading.Thread.__init__(self) #MagicT
-      self.sys = sysPrint(self.ID, debugSys)
-      self.txQueue = txQueue
-      self.rxQueue = rxQueue
-      self.start()
-      self.sys.info("Initializing Application...")
+   def __init__(self, parent, **kwargs):
+      self.parent = parent
 
    def startup(self):
       frameLib.CreateBlankFrame(self.frame)
       self.forceUpdate = True
-      threading.Timer(self.rxPollTime, self.__rxPoll).start() #rxQueue Poller
-      threading.Timer(self.appPollTime, self.__appPoll).start() #App Poller
-      self.sys.info("Starting Application...")
 
-
-   def kill(self):
-      self.dying = True
-      self.sys.info("Stopping Application...")
-
-   def pause(self):
-      self.pauseApp = True
-
-   def resume(self):
-      self.pauseApp = False
-      threading.Timer(self.appPollTime, self.__appPoll).start() #App Poller
-
-   def __rxPoll(self):
-      if not self.dying:
-         cmd = self.rxQueue.get()
-         self.sys.rxDebug(cmd)
+   def incomingRx(self, cmd):
+      # Decode Incoming Cmd Packets
+      # Colour Change Command
+      if cmd['typ'] == "COLOR":
+         self.frameColour = [int(cmd['dat'][4:6],16), #R
+                             int(cmd['dat'][2:4],16), #G
+                             int(cmd['dat'][0:2],16)] #B
+         self.forceUpdate = True
          
-         # Decode Incoming Cmd Packets
-         # Colour Change Command
-         if cmd['typ'] == "COLOR":
-            self.frameColour = [int(cmd['dat'][4:6],16), #R
-                                int(cmd['dat'][2:4],16), #G
-                                int(cmd['dat'][0:2],16)] #B
-            self.forceUpdate = True
-         
-         # Time Format Change
-         if cmd['typ'] == "MODE":
-            self.forceUpdate = True
+      # Time Format Change
+      if cmd['typ'] == "MODE":
+         self.forceUpdate = True
        
-         if cmd['typ'] == "KILL":
-            self.kill()
-   
-         if not self.dying: threading.Timer(self.rxPollTime, self.__rxPoll).start() #rxQueue Poller
+      if cmd['typ'] == "KILL":
+         self.parent.kill()
 
    # Main Application Loop
-   def __appPoll(self):
-      if not self.dying and not self.pauseApp:
-         if   self.colourTestMode == "vLineAni":
-            self.__generateVertLineAnimation()
-         elif self.colourTestMode == "colour":
-            if self.forceUpdate:
-               frameLib.CreateBlankFrame(self.frame)
-               frameLib.CreateColourFrame( self.frame, self.frameColour )
-               self.__framePush(self.frame)
-               self.forceUpdate = False
-         
-         if not self.dying and not self.pauseApp: threading.Timer(self.appPollTime, self.__appPoll).start() #App Poller
+   def appTick(self):
+      if   self.colourTestMode == "vLineAni":
+           self.generateVertLineAnimation()
+      elif self.colourTestMode == "colour":
+         if self.forceUpdate:
+            frameLib.CreateBlankFrame(self.frame)
+            frameLib.CreateColourFrame( self.frame, self.frameColour )
+            self.framePush(self.frame)
+            self.forceUpdate = False
    
-   def __framePush(self, frame):
-      self.txQueue.put({'dst': "DISP",
-                           'src': self.ID,
-                           'typ': "FRAME",
-                           'dat': frame})
+   def framePush(self, frame):
+      self.parent.txQueue.put({'dst': "DISP",
+                               'src': self.ID,
+                               'typ': "FRAME",
+                               'dat': frame})
 
-   def __generateVertLineAnimation( self ):
+   def generateVertLineAnimation( self ):
       animationDelay = 20
       self.tickCount += 1
       if self.tickCount >= animationDelay:
@@ -122,7 +84,7 @@ class colourTestApp(threading.Thread):
             frameLib.DrawFramePixel(self.frame, tickX, tickY, frameLib.GREEN)
          elif colPtr == 2:
             frameLib.DrawFramePixel(self.frame, tickX, tickY, frameLib.BLUE)
-         self.__framePush(self.frame)
+         self.framePush(self.frame)
          
          if self.tickCount >= animationDelay + 256:
             frameLib.CreateBlankFrame( self.frame )

@@ -68,12 +68,12 @@ class wsInterface( threading.Thread ):
    # txQueue = TX Cmd Queue , (Always Push)
    # rxQueue = Rx Cmd Queue , (Always Pop)
 
-   def __init__( self, txQueue, rxQueue, debugSys ):
+   def __init__( self, txQueue, rxQueue, **kwargs ):
       threading.Thread.__init__(self) #MagicT
-      self.sys = sysPrint(self.ID, debugSys) 
+      self.sys = sysPrint(self.ID, kwargs['debugSys'])
       self.txQueue = txQueue
       self.rxQueue = rxQueue
-      self.debugSys = debugSys
+      self.debugSys = kwargs['debugSys']
       self.start()
       self.sys.info("Initializing Application...")
 

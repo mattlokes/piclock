@@ -4,6 +4,7 @@ import signal
 from sys import *
 
 from libraries.systemLib import *
+from framework.components.application import *
 
 from framework.webserver.webServer import *
 
@@ -20,7 +21,7 @@ def sigIntHandler(signal, frame):
 
 def killModules():
    for name, module in modules.iteritems():
-      if module['state'] is "R":
+      if module['enabled']:
          if name is not "WEBSOCK" and "rxPipe" in module.keys(): #If Module is running and rxPipe send KILL Msg
             module['rxPipe'].put({'dst':name, 'src':"MAIN", 'typ':"KILL", 'dat':0})
          else:                         #Else Use Kill Function
@@ -41,22 +42,21 @@ if len(sys.argv) > 1:
 
 sys = sysPrint("MAIN", debugSys)
 
-# Module State: R=Running, I=Initialized & P=Paused
 modules = {
            'DISP': 
-           {'class':"hwInterface", 'state': "R", 'obj': None,
-            'txPipe': None, 'rxPipe': None, 'args': [fastRx, fakeSerial,debugSys] },
+           {'class': hwInterface, 'type': "INTER", 'obj': None, 'enabled': True,
+            'txPipe': None, 'rxPipe': None, 'kwargs': {'fastRx': fastRx, 'fakeSerial': fakeSerial, 'debugSys': debugSys} },
            'WEBSOCK':
-           {'class':"wsInterface", 'state': "R", 'obj': None,
-            'txPipe': None, 'rxPipe': None, 'args': [debugSys] },
+           {'class': wsInterface, 'type': "INTER", 'obj': None, 'enabled': True,
+            'txPipe': None, 'rxPipe': None, 'kwargs': {'debugSys': debugSys} },
            'WEBSERVER': 
-           {'class':"webServer", 'state': "R", 'obj': None },
+           {'class': webServer, 'type': "INTER", 'obj': None, 'enabled': True},
            'CLOCK':
-           {'class':"clockApp", 'state': "R", 'obj': None,
-            'txPipe': None, 'rxPipe': None, 'args': [debugSys] },
-           'COLTEST': 
-           {'class':"colourTestApp", 'state': None, 'obj': None,
-            'txPipe': None, 'rxPipe': None, 'args': [debugSys] }
+           {'class': clockApp, 'type': "APP", 'obj': None, 'enabled': True,
+            'txPipe': None, 'rxPipe': None, 'kwargs': {'debugSys':debugSys} },
+           'COLOUR': 
+           {'class': colourTestApp , 'type': "APP", 'obj': None, 'enabled': False,
+            'txPipe': None, 'rxPipe': None, 'kwargs': {'debugSys':debugSys} }
           }
 
 if noDisp: modules['DISP']['state'] = None
@@ -64,7 +64,16 @@ if noDisp: modules['DISP']['state'] = None
 #Go through Modules Instantiating them all and starting up
 for name, module in modules.iteritems():
    argList = []
-   if module['state'] is "R":
+   if module['enabled']:
+      
+      if   module['type'] is "INTER":
+         modClass = module['class']
+      elif module['type'] is "APP":
+         modClass = application
+         argList.append(module['class'])
+      else:
+         pass
+
       if 'txPipe' in module.keys():
          module['txPipe'] = Queue.Queue()
          argList.append(module['txPipe'])
@@ -73,7 +82,12 @@ for name, module in modules.iteritems():
          argList.append(module['rxPipe'])
       if 'args' in module.keys():
          argList += module['args']
-      module['obj'] = eval(module['class'])(*argList)
+
+      if 'kwargs' in module.keys():
+         module['obj'] = modClass(*argList,**module['kwargs'])
+      else:
+         module['obj'] = modClass(*argList)
+
       module['obj'].startup()
 
 #MAIN LOOP Check for Messages from all modules and route them
