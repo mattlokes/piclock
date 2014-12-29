@@ -47,6 +47,7 @@ class application(threading.Thread):
 
       self.sys = sysPrint(self.app.ID, self.debugSys)
       self.start()
+      self.state = "INIT"
       self.sys.info("Initializing Application...")
 
    def startup(self):
@@ -54,21 +55,27 @@ class application(threading.Thread):
       self.app.startup()
       
       if self.rxQueue != None: threading.Timer(self.rxPollTime, self.__rxPoll).start() #rx Poller
-      if hasattr(self.app, 'appPollTime'): self.appPollTime = self.app.appPollTime
-      threading.Timer(self.appPollTime, self.__appPoll).start() #App Poller
+      #if hasattr(self.app, 'appPollTime'): self.appPollTime = self.app.appPollTime
+      #threading.Timer(self.appPollTime, self.__appPoll).start() #App Poller
+      self.state = "PAUSED"
       self.sys.info("Starting Application...")
 
 
    def kill(self):
       self.dying = True
+      self.rxQueue.put({'dst': self.app.ID, 'src': self.app.ID, 'typ': "KILL", 'dat':0}) #Unlock rx wait
+      self.state = "DEAD"
       self.sys.info("Stopping Application...")
 
    def pause(self):
       self.pauseApp = True
+      self.state = "PAUSED"
 
    def resume(self):
       self.pauseApp = False
+      self.app.forceUpdate = True
       if hasattr(self.app, 'appPollTime'): self.appPollTime = self.app.appPollTime
+      self.state = "RUNNING"
       threading.Timer(self.appPollTime, self.__appPoll).start() #App Poller
 
    def __rxPoll(self):

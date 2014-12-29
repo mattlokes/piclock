@@ -71,6 +71,7 @@ class hwInterface( threading.Thread ):
 
    def kill( self ):
       self.dying = True
+      self.rxQueue.put({'dst': "DISP", 'src': "DISP", 'typ': "KILL", 'dat':0})
       if not self.fastRx:
          self.srtThreadEvent.set()
          self.srtThreadAlive = 0
@@ -99,7 +100,7 @@ class hwInterface( threading.Thread ):
 
       #Kill Command, Stop Module
       if cmd['typ'] == "KILL":
-         self.kill() 
+         pass 
 
       if not self.dying: threading.Timer(self.rxPollTime, self.__rxPoll).start() #rxQueue Poller
    
@@ -141,6 +142,8 @@ class hwInterface( threading.Thread ):
             while (self.ser.inWaiting() != 0):
                self.srtBuffer.append(self.ser.read())
    
+   #Serial Recieving Parse Thread used when PIC32 Debug Build is connected.
+   #Split Data from Debug Information and print debug Information.
    def __serialRecieverDataParseThread ( self, e, name ):
       while (self.srtThreadAlive):
          e.wait()

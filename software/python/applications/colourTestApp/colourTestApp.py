@@ -45,9 +45,6 @@ class colourTestApp():
       # Time Format Change
       if cmd['typ'] == "MODE":
          self.forceUpdate = True
-       
-      if cmd['typ'] == "KILL":
-         self.parent.kill()
 
    # Main Application Loop
    def appTick(self):

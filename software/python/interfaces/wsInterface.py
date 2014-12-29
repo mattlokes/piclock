@@ -49,13 +49,9 @@ class WSHandler( tornado.websocket.WebSocketHandler ):
 
       # Decode Incoming Cmd Packets
       if cmd['typ'] == "KILL":
-         self.kill()
+         self.dying = True
 
       if not self.dying: threading.Timer(self.rxPollTime, self.__rxPoll).start() #rxQueue Poller
-
-
-   def kill ( self ):
-      self.dying = True
     
 class wsInterface( threading.Thread ):
    

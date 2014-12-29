@@ -62,9 +62,6 @@ class clockApp():
          
          self.forceUpdate = True
 
-      if cmd['typ'] == "KILL":
-         self.parent.kill()
-
    # Main Application Loop
    def appTick(self):
       #Update Time

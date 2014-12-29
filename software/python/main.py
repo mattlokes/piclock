@@ -1,6 +1,8 @@
 import Queue
 import time
 import signal
+import threading
+
 from sys import *
 
 from libraries.systemLib import *
@@ -15,22 +17,30 @@ from applications.clockApp.clockApp import *
 from applications.colourTestApp.colourTestApp import *
 
 def sigIntHandler(signal, frame):
-   print ""
    killModules()
    exit(0)
 
 def killModules():
    for name, module in modules.iteritems():
-      if module['enabled']:
-         if name is not "WEBSOCK" and "rxPipe" in module.keys(): #If Module is running and rxPipe send KILL Msg
-            module['rxPipe'].put({'dst':name, 'src':"MAIN", 'typ':"KILL", 'dat':0})
-         else:                         #Else Use Kill Function
-            module['obj'].kill()
+      if module['enabled']: module['obj'].kill()
+
+def rxIncoming( cmd ):
+   global runningApp
+   if cmd['typ'] == "SWITCH":
+      appToSwitch = cmd['dat']
+      if appToSwitch in modules.keys() and appToSwitch is not runningApp:
+         if modules[appToSwitch]['enabled']:
+            modules[runningApp]['obj'].pause()
+            modules[appToSwitch]['obj'].resume()
+            runningApp = appToSwitch
+      
 
 fakeSerial=False
 fastRx=True
 noDisp=False
 debugSys=False
+
+defaultApp = "CLOCK"
 
 signal.signal(signal.SIGINT, sigIntHandler)
 
@@ -44,29 +54,29 @@ sys = sysPrint("MAIN", debugSys)
 
 modules = {
            'DISP': 
-           {'class': hwInterface, 'type': "INTER", 'obj': None, 'enabled': True,
+           {'class': hwInterface, 'type': "IFACE", 'obj': None, 'enabled': True,
             'txPipe': None, 'rxPipe': None, 'kwargs': {'fastRx': fastRx, 'fakeSerial': fakeSerial, 'debugSys': debugSys} },
            'WEBSOCK':
-           {'class': wsInterface, 'type': "INTER", 'obj': None, 'enabled': True,
+           {'class': wsInterface, 'type': "IFACE", 'obj': None, 'enabled': True,
             'txPipe': None, 'rxPipe': None, 'kwargs': {'debugSys': debugSys} },
            'WEBSERVER': 
-           {'class': webServer, 'type': "INTER", 'obj': None, 'enabled': True},
+           {'class': webServer, 'type': "IFACE", 'obj': None, 'enabled': True},
            'CLOCK':
            {'class': clockApp, 'type': "APP", 'obj': None, 'enabled': True,
             'txPipe': None, 'rxPipe': None, 'kwargs': {'debugSys':debugSys} },
            'COLOUR': 
-           {'class': colourTestApp , 'type': "APP", 'obj': None, 'enabled': False,
+           {'class': colourTestApp , 'type': "APP", 'obj': None, 'enabled': True,
             'txPipe': None, 'rxPipe': None, 'kwargs': {'debugSys':debugSys} }
           }
 
-if noDisp: modules['DISP']['state'] = None
+if noDisp: modules['DISP']['enabled'] = False
 
 #Go through Modules Instantiating them all and starting up
 for name, module in modules.iteritems():
    argList = []
    if module['enabled']:
       
-      if   module['type'] is "INTER":
+      if   module['type'] is "IFACE":
          modClass = module['class']
       elif module['type'] is "APP":
          modClass = application
@@ -77,11 +87,10 @@ for name, module in modules.iteritems():
       if 'txPipe' in module.keys():
          module['txPipe'] = Queue.Queue()
          argList.append(module['txPipe'])
+
       if 'rxPipe' in module.keys():
          module['rxPipe'] = Queue.Queue()
          argList.append(module['rxPipe'])
-      if 'args' in module.keys():
-         argList += module['args']
 
       if 'kwargs' in module.keys():
          module['obj'] = modClass(*argList,**module['kwargs'])
@@ -90,16 +99,21 @@ for name, module in modules.iteritems():
 
       module['obj'].startup()
 
+#Start Default App
+modules[defaultApp]['obj'].resume()
+runningApp = defaultApp
+
 #MAIN LOOP Check for Messages from all modules and route them
 while True:
    for name, module in modules.iteritems():
-      try:
-         msg = module['txPipe'].get(block=False)
-      except:
-         pass
+      try:    cmd = module['txPipe'].get(block=False)
+      except: pass
       else:
-         try:
-            modules[msg['dst']]['rxPipe'].put(msg)
-         except:
-            sys.error("Cmd Destination {0} does not exist".format(msg['dst']))
+         if cmd['dst'] == "MAIN": #Packets sent to MAIN are pulled here
+            rxIncoming( cmd )
+         else:                    #Packets to be route here to other modules
+            try:
+               modules[cmd['dst']]['rxPipe'].put(cmd)
+            except:
+               sys.error("Cmd Destination {0} does not exist".format(cmd['dst']))
    time.sleep(0.01)
