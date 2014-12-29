@@ -10,7 +10,6 @@
 
 import Queue
 import threading
-import time
 import datetime
 
 from libraries.frameLib import *
@@ -22,10 +21,12 @@ class clockApp( threading.Thread ):
    from clockAppConsts import *  
  
    ID = "CLOCK"
-   dying = False
    appPollTime = 0.1    #10Hz
    rxPollTime = 0.02 #50Hz  
+   
+   dying = False
    forceUpdate = False
+   pauseApp = False
 
    clockMode = "WORD"
    todMode = 0
@@ -61,50 +62,59 @@ class clockApp( threading.Thread ):
       self.dying = True
       self.sys.info("Stopping Application...")
 
+   def pause(self):
+      self.pauseApp = True
+
+   def resume(self):
+      self.pauseApp = False
+      threading.Timer(self.appPollTime, self.__appPoll).start() #App Poller
+
    def __rxPoll(self):
-      cmd = self.rxQueue.get()
-      self.sys.rxDebug(cmd)
-      
-      # Decode Incoming Cmd Packets
-      # Colour Change Command
-      if cmd['typ'] == "COLOR":
-         self.timeColour = [int(cmd['dat'][4:6],16), #R
-                            int(cmd['dat'][2:4],16), #G
-                            int(cmd['dat'][0:2],16)] #B
-         self.forceUpdate = True
-      
-      # Time Format Change
-      if cmd['typ'] == "MODE":
-         self.clockMode = cmd['dat']
-         self.forceUpdate = True
-
-      if cmd['typ'] == "TOD":
-         if cmd['dat'] == "SUFFIX": self.todMode = 1
-         elif cmd['dat'] == "AMPM": self.todMode = 2
-         else:                      self.todMode = 0
+      if not self.dying:
+         cmd = self.rxQueue.get()
+         self.sys.rxDebug(cmd)
          
-         self.forceUpdate = True
-
-      if cmd['typ'] == "KILL":
-         self.kill()
-
-      if not self.dying: threading.Timer(self.rxPollTime, self.__rxPoll).start() #rxQueue Poller
+         # Decode Incoming Cmd Packets
+         # Colour Change Command
+         if cmd['typ'] == "COLOR":
+            self.timeColour = [int(cmd['dat'][4:6],16), #R
+                               int(cmd['dat'][2:4],16), #G
+                               int(cmd['dat'][0:2],16)] #B
+            self.forceUpdate = True
+         
+         # Time Format Change
+         if cmd['typ'] == "MODE":
+            self.clockMode = cmd['dat']
+            self.forceUpdate = True
+   
+         if cmd['typ'] == "TOD":
+            if cmd['dat'] == "SUFFIX": self.todMode = 1
+            elif cmd['dat'] == "AMPM": self.todMode = 2
+            else:                      self.todMode = 0
+            
+            self.forceUpdate = True
+   
+         if cmd['typ'] == "KILL":
+            self.kill()
+   
+         if not self.dying: threading.Timer(self.rxPollTime, self.__rxPoll).start() #rxQueue Poller
 
    # Main Application Loop
    def __appPoll(self):
-      #Update Time
-      get_h = datetime.datetime.now().time().hour
-      get_m = datetime.datetime.now().time().minute
-      timeHistoryCompare=str(get_h)+str(get_m)
-
-      if self.timeHistory != timeHistoryCompare or self.forceUpdate:
-         frameLib.CreateBlankFrame(self.frame)
-         self.__CreateTimeFrame( self.frame, get_h, get_m, self.clockMode, self.timeColour )
-         self.__framePush(self.frame)
-         self.timeHistory=timeHistoryCompare
-         self.forceUpdate = False
-      
-      if not self.dying: threading.Timer(self.appPollTime, self.__appPoll).start() #App Poller
+      if not self.dying and not self.pauseApp: #App Poller
+         #Update Time
+         get_h = datetime.datetime.now().time().hour
+         get_m = datetime.datetime.now().time().minute
+         timeHistoryCompare=str(get_h)+str(get_m)
+   
+         if self.timeHistory != timeHistoryCompare or self.forceUpdate:
+            frameLib.CreateBlankFrame(self.frame)
+            self.__CreateTimeFrame( self.frame, get_h, get_m, self.clockMode, self.timeColour )
+            self.__framePush(self.frame)
+            self.timeHistory=timeHistoryCompare
+            self.forceUpdate = False
+         
+         if not self.dying and not self.pauseApp: threading.Timer(self.appPollTime, self.__appPoll).start() #App Poller
    
    def __framePush(self, frame):
       self.txQueue.put({'dst': "DISP",

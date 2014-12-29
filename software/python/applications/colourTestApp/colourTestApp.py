@@ -10,8 +10,6 @@
 
 import Queue
 import threading
-import time
-import datetime
 
 from libraries.frameLib import *
 from libraries.systemLib import *
@@ -19,10 +17,12 @@ from libraries.systemLib import *
 class colourTestApp(threading.Thread):
    
    ID = "COLOUR"
-   dying = False
    appPollTime = 0.02    #10Hz
    rxPollTime = 0.02 #50Hz  
+   
+   dying = False
    forceUpdate = False
+   pauseApp = False
 
    #colourTestMode = "colour"
    colourTestMode = "vLineAni"
@@ -55,39 +55,48 @@ class colourTestApp(threading.Thread):
       self.dying = True
       self.sys.info("Stopping Application...")
 
-   def __rxPoll(self):
-      cmd = self.rxQueue.get()
-      self.sys.rxDebug(cmd)
-      
-      # Decode Incoming Cmd Packets
-      # Colour Change Command
-      if cmd['typ'] == "COLOR":
-         self.frameColour = [int(cmd['dat'][4:6],16), #R
-                             int(cmd['dat'][2:4],16), #G
-                             int(cmd['dat'][0:2],16)] #B
-         self.forceUpdate = True
-      
-      # Time Format Change
-      if cmd['typ'] == "MODE":
-         self.forceUpdate = True
-    
-      if cmd['typ'] == "KILL":
-         self.kill()
+   def pause(self):
+      self.pauseApp = True
 
-      if not self.dying: threading.Timer(self.rxPollTime, self.__rxPoll).start() #rxQueue Poller
+   def resume(self):
+      self.pauseApp = False
+      threading.Timer(self.appPollTime, self.__appPoll).start() #App Poller
+
+   def __rxPoll(self):
+      if not self.dying:
+         cmd = self.rxQueue.get()
+         self.sys.rxDebug(cmd)
+         
+         # Decode Incoming Cmd Packets
+         # Colour Change Command
+         if cmd['typ'] == "COLOR":
+            self.frameColour = [int(cmd['dat'][4:6],16), #R
+                                int(cmd['dat'][2:4],16), #G
+                                int(cmd['dat'][0:2],16)] #B
+            self.forceUpdate = True
+         
+         # Time Format Change
+         if cmd['typ'] == "MODE":
+            self.forceUpdate = True
+       
+         if cmd['typ'] == "KILL":
+            self.kill()
+   
+         if not self.dying: threading.Timer(self.rxPollTime, self.__rxPoll).start() #rxQueue Poller
 
    # Main Application Loop
    def __appPoll(self):
-      if   self.colourTestMode == "vLineAni":
-         self.__generateVertLineAnimation()
-      elif self.colourTestMode == "colour":
-         if self.forceUpdate:
-            frameLib.CreateBlankFrame(self.frame)
-            frameLib.CreateColourFrame( self.frame, self.frameColour )
-            self.__framePush(self.frame)
-            self.forceUpdate = False
-      
-      if not self.dying: threading.Timer(self.appPollTime, self.__appPoll).start() #App Poller
+      if not self.dying and not self.pauseApp:
+         if   self.colourTestMode == "vLineAni":
+            self.__generateVertLineAnimation()
+         elif self.colourTestMode == "colour":
+            if self.forceUpdate:
+               frameLib.CreateBlankFrame(self.frame)
+               frameLib.CreateColourFrame( self.frame, self.frameColour )
+               self.__framePush(self.frame)
+               self.forceUpdate = False
+         
+         if not self.dying and not self.pauseApp: threading.Timer(self.appPollTime, self.__appPoll).start() #App Poller
    
    def __framePush(self, frame):
       self.txQueue.put({'dst': "DISP",

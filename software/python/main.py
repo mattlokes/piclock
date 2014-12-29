@@ -16,7 +16,6 @@ from applications.colourTestApp.colourTestApp import *
 def sigIntHandler(signal, frame):
    print ""
    killModules()
-   #time.sleep(2)
    exit(0)
 
 def killModules():
