@@ -66,6 +66,16 @@ class frameLib ():
             frame[(y*16)+(x+i)] = colour
    
    @staticmethod 
+   def GetFramePixel ( frame, x , y):
+      if len(frame) != 256:
+         print "SFP - INVALID FRAME"
+      else:
+         if x < 16 and y < 16: 
+            return frame[(y*16)+x]
+         else:
+            pass #Silently Ignore
+
+   @staticmethod 
    def CreateEqualizerFrame( frame , aChans) :
       if len(aChans) != 16:
          print "CEF - INVALID aChans Length "+ str(len(aChans))
