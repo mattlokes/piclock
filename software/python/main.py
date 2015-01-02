@@ -14,6 +14,7 @@ from interfaces.hwInterface import *
 from interfaces.wsInterface import *
 
 from applications.clockApp.clockApp import *
+from applications.snakeApp.snakeApp import *
 from applications.colourTestApp.colourTestApp import *
 
 def sigIntHandler(signal, frame):
@@ -63,6 +64,9 @@ modules = {
            {'class': webServer, 'type': "IFACE", 'obj': None, 'enabled': True},
            'CLOCK':
            {'class': clockApp, 'type': "APP", 'obj': None, 'enabled': True,
+            'txPipe': None, 'rxPipe': None, 'kwargs': {'debugSys':debugSys} },
+           'SNAKE':
+           {'class': snakeApp, 'type': "APP", 'obj': None, 'enabled': True,
             'txPipe': None, 'rxPipe': None, 'kwargs': {'debugSys':debugSys} },
            'COLOUR': 
            {'class': colourTestApp , 'type': "APP", 'obj': None, 'enabled': True,

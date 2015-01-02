@@ -5,6 +5,7 @@ document.write("        <li id=\"nav-status\"><a href=\"/index.html\"><b>Status<
 document.write("      </ul>");
 document.write("      <ul class=\"nav navmenu-nav\">");
 document.write("        <li id=\"nav-clock\"><a href=\"/applications/clockApp/\">Clock</a></li>");
+document.write("        <li id=\"nav-snake\"><a href=\"/applications/snakeApp/\">Snake</a></li>");
 document.write("        <li id=\"nav-color\"><a href=\"/applications/colourTestApp/\">ColourTest</a></li>");
 document.write("      </ul>");
 document.write("      <ul class=\"nav navmenu-nav\">");

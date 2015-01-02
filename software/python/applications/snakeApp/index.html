@@ -1,0 +1,209 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="">
+    <meta name="author" content="">
+
+    <title>Matt's RGB WordClock</title>
+
+    <!-- Bootstrap core CSS -->
+    <link href="//netdna.bootstrapcdn.com/bootstrap/3.1.1/css/bootstrap.min.css" rel="stylesheet">
+    <link href="/navmenu/css/jasny-bootstrap.min.css" rel="stylesheet">
+
+    <!-- Custom styles for this template -->
+    <link href="/navmenu/css/navmenu-push.css" rel="stylesheet">
+
+  </head>
+
+  <body>
+    <script src="https://code.jquery.com/jquery-2.1.3.min.js"></script>
+    
+    <!-- NavMenu -->
+    <script type="text/javascript" src="/includes/navmenu.js"> </script>    
+    
+    <!-- Status Body -->
+    <div class="container">
+      <div class="page-header">
+        <h1>Snake</h1>
+      </div>
+
+      <div class="row">
+          <p class="lead">Control:</p>
+      </div>
+      
+      <div class="row">
+        <div class="col-xs-2 col-md-1">
+        </div>
+        <div class="col-xs-2 col-md-1">
+           <a href="#" id="btnUp" class="btn btn-info btn-lg">
+              <span class="glyphicon glyphicon-circle-arrow-up"></span>
+           </a>
+        </div>
+        <div class="col-xs-2 col-md-1">
+        </div>
+      </div>
+      
+      <div class="row">
+      <label></label>
+      </div>
+      
+      <div class="row">
+        <div class="col-xs-2 col-md-1">
+           <a href="#" id="btnLeft" class="btn btn-info btn-lg">
+              <span class="glyphicon glyphicon-circle-arrow-left"></span>
+           </a>
+        </div>
+        <div class="col-xs-2 col-md-1">
+           <a href="#" id="btnEnter" class="btn btn-info btn-lg">
+              <span class="glyphicon glyphicon-unchecked"></span>
+           </a>
+        </div>
+        <div class="col-xs-2 col-md-1">
+           <a href="#" id="btnRight" class="btn btn-info btn-lg">
+              <span class="glyphicon glyphicon-circle-arrow-right"></span>
+           </a>
+        </div>
+      </div>
+      
+      <div class="row">
+      <label></label>
+      </div>
+      
+      <div class="row">
+        <div class="col-xs-2 col-md-1">
+        </div>
+        <div class="col-xs-2 col-md-1">
+           <a href="#" id="btnDown" class="btn btn-info btn-lg">
+              <span class="glyphicon glyphicon-circle-arrow-down"></span>
+           </a>
+        </div>
+        <div class="col-xs-2 col-md-1">
+        </div>
+      </div>
+
+ 
+      <div class="row">
+        <div id="output"></div>
+        <hr>  
+      </div>
+        <!--<script type="text/javascript" src="/jscolor/jscolor.js"></script>
+        Click here: <input class="color" id="col" value="00ff00"> -->
+    </div>
+
+    <!-- JS for Page -->
+    <script type="text/javascript"> document.getElementById("nav-clock").className += "active"; </script>
+
+<script type="text/javascript" src="http://l2.io/ip.js?var=myip"></script>
+<script>
+var wsUri = "ws://192.168.1.83:5005/ws";
+var output;
+var websocket;
+var nInit = 0;
+var sendTimerObj;
+var DEPRICATE = 1;
+
+window.addEventListener("load", init, false);
+
+function init()
+{ 
+  $('#btnUp').click(function(){sendUp(); return false; });
+  $('#btnDown').click(function(){sendDown(); return false; });
+  $('#btnRight').click(function(){sendRight(); return false; });
+  $('#btnLeft').click(function(){sendLeft(); return false; });
+  $('#btnEnter').click(function(){sendEnter(); return false; });
+  output = document.getElementById("output");
+
+  websocket = new WebSocket(wsUri);
+  websocket.onopen = function(evt) { onOpen(evt) };
+  websocket.onclose = function(evt) { onClose(evt) };
+  websocket.onmessage = function(evt) { onMessage(evt) };
+  websocket.onerror = function(evt) { onError(evt) }; 
+}
+
+function sendUp()
+{
+    doSend("#SNAKE#DIR#UP#");
+}
+function sendDown()
+{
+    doSend("#SNAKE#DIR#DOWN#");
+}
+function sendRight()
+{
+    doSend("#SNAKE#DIR#RIGHT#");
+}
+function sendLeft()
+{
+    doSend("#SNAKE#DIR#LEFT#");
+}
+function sendEnter()
+{
+    doSend("#SNAKE#DIR#ENTER#");
+}
+
+function onOpen(evt) 
+{ 
+  //writeToScreen(myip); 
+  doSend("#"+myip);
+  doSend("#MAIN#SWITCH#SNAKE#");
+}  
+
+function onClose(evt)
+{ 
+  //writeToScreen("DISCONNECTED"); 
+}
+
+function onMessage(evt) 
+{ 
+  if( (evt.data[0] == "(") &&
+      (evt.data[4] == ",") &&
+      (evt.data[8] == ")")) {
+    //Input Coord
+    var cur_yaw   = parseInt(evt.data.slice(1,4));
+    var cur_pitch = parseInt(evt.data.slice(5,8));
+    
+    document.getElementById('yaw').value      = cur_yaw;
+    document.getElementById('yawval').value   = cur_yaw;
+    document.getElementById('pitch').value    = cur_pitch;
+    document.getElementById('pitchval').value = cur_pitch;
+   
+    if(nInit == 0) { 
+      sendTimerObj = setInterval(timerfun,30);
+      nInit = 1;
+    }
+  }
+  //writeToScreen('<span style="color: blue;">RESPONSE: ' + evt.data+'</span>');
+  //websocket.close(); 
+}
+
+function onError(evt) 
+{ 
+  writeToScreen('<span style="color: red;">ERROR:</span> ' + evt.data + " DISPLAY OFFLINE?");
+} 
+
+function doSend(message) 
+{
+  websocket.send(message);
+}
+
+function writeToScreen(message) 
+{
+  var pre = document.createElement("p");
+  pre.style.wordWrap = "break-word";
+  pre.innerHTML = message;
+  output.appendChild(pre);
+}
+
+</script>
+
+    <!-- Bootstrap core JavaScript
+    ================================================== -->
+    <!-- Placed at the end of the document so the pages load faster -->
+    <!-- <script src="https://code.jquery.com/jquery-1.10.2.min.js"></script> -->
+    <!-- <script src="https://code.jquery.com/jquery-2.1.3.min.js"></script> -->
+    <script src="//netdna.bootstrapcdn.com/bootstrap/3.1.1/js/bootstrap.min.js"></script>
+    <script src="/navmenu/js/jasny-bootstrap.min.js"></script>
+  </body>
+</html>
