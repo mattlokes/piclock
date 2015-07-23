@@ -101,7 +101,7 @@
 
 <script type="text/javascript" src="http://l2.io/ip.js?var=myip"></script>
 <script>
-var wsUri = "ws://192.168.1.83:5005/ws";
+var wsUri;
 var output;
 var colval = document.getElementById('col').value;
 var modeVal = "";
@@ -113,6 +113,8 @@ var DEPRICATE = 1;
 function init()
 { 
   output = document.getElementById("output");
+  //set wsUri to location.host
+  wsUri = "ws://" + location.hostname + ":5005/ws";
   testWebSocket();
 }
 
