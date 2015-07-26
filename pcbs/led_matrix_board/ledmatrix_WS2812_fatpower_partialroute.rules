@@ -1,0 +1,113 @@
+
+(rules PCB ledmatrix_WS2812_fatpower_partialroute
+  (snap_angle 
+    fortyfive_degree
+  )
+  (autoroute_settings
+    (fanout off)
+    (autoroute on)
+    (postroute on)
+    (vias on)
+    (via_costs 50)
+    (plane_via_costs 5)
+    (start_ripup_costs 100)
+    (start_pass_no 927)
+    (layer_rule Front
+      (active on)
+      (preferred_direction horizontal)
+      (preferred_direction_trace_costs 1.0)
+      (against_preferred_direction_trace_costs 2.0)
+    )
+    (layer_rule Back
+      (active on)
+      (preferred_direction vertical)
+      (preferred_direction_trace_costs 1.0)
+      (against_preferred_direction_trace_costs 2.0)
+    )
+  )
+  (rule
+    (width 506.4)
+    (clear 254.2)
+    (clear 253.2 (type smd_to_turn_gap))
+    (clear 63.6 (type smd_smd))
+  )
+  (padstack "Via[0-1]_889:635_um"
+    (shape
+      (circle Front 889.0 0.0 0.0)
+    )
+    (shape
+      (circle Back 889.0 0.0 0.0)
+    )
+    (attach off)
+  )
+  (padstack "Via[0-1]_889:0_um"
+    (shape
+      (circle Front 889.0 0.0 0.0)
+    )
+    (shape
+      (circle Back 889.0 0.0 0.0)
+    )
+    (attach off)
+  )
+  (via 
+    "Via[0-1]_889:635_um" "Via[0-1]_889:635_um" default
+  )
+  (via 
+    "Via[0-1]_889:0_um" "Via[0-1]_889:0_um" default
+  )
+  (via 
+    "Via[0-1]_889:635_um-kicad_default" "Via[0-1]_889:635_um" "kicad_default"
+  )
+  (via 
+    "Via[0-1]_889:0_um-kicad_default" "Via[0-1]_889:0_um" "kicad_default"
+  )
+  (via 
+    "Via[0-1]_889:635_um-Power" "Via[0-1]_889:635_um" Power
+  )
+  (via 
+    "Via[0-1]_889:0_um-Power" "Via[0-1]_889:0_um" Power
+  )
+  (via_rule
+    default "Via[0-1]_889:635_um"
+  )
+  (via_rule
+    "kicad_default" "Via[0-1]_889:635_um-kicad_default"
+  )
+  (via_rule
+    Power "Via[0-1]_889:635_um-Power"
+  )
+  (class default
+    (clearance_class default)
+    (via_rule default)
+    (rule
+      (width 506.4)
+    )
+    (circuit 
+      (use_layer Front Back)
+    )
+  )
+  (class "kicad_default"
+    "N-000003" "N-000004" "N-000005" "N-000006" "N-000007" "N-000008" "N-000009" "N-000010"
+    "N-000011" "N-000012" "N-000013" "N-000014" "N-000015" "N-000016" "N-000017" "N-000018"
+    "N-000019" "N-000020" "N-000021" "N-000022" "N-000023" "N-000024" "N-000025" "N-000026"
+    (clearance_class "kicad_default")
+    (via_rule kicad_default)
+    (rule
+      (width 506.4)
+    )
+    (circuit 
+      (use_layer Front Back)
+    )
+  )
+  (class Power
+    "N-000001" "N-000002"
+    (clearance_class Power)
+    (via_rule Power)
+    (rule
+      (width 850.0)
+    )
+    (circuit 
+      (use_layer Front Back)
+    )
+  )
+)
