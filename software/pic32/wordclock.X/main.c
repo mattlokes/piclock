@@ -13,8 +13,15 @@
 #include "colour_map.h"
 #include "splash_img.h"
 
+//80Mhz
 #pragma config FPLLMUL = MUL_20, FPLLIDIV = DIV_2, FPLLODIV = DIV_1, FWDTEN = OFF
 #pragma config POSCMOD = HS, FNOSC = PRIPLL, FPBDIV = DIV_1
+
+//40Mhz
+//#pragma config FPLLMUL = MUL_20, FPLLIDIV = DIV_2, FPLLODIV = DIV_2, FWDTEN = OFF
+//#pragma config POSCMOD = HS, FNOSC = PRIPLL, FPBDIV = DIV_1
+
+#define WS2812
 
 #define	GetPeripheralClock()		(SYS_FREQ/(1 << OSCCONbits.PBDIV))
 
@@ -22,14 +29,17 @@
 
 #define SYS_FREQ (80000000L)
 
+#ifndef WS2812 //Scanning Matrix Frequency Definitions
 //Frequency Definitions
 #define LED_FREQ       100
+
 #define ROW_REFRESH_FREQ   (LED_FREQ*16)
 //Another Extra Offset...WTF 6000-> 1.579kHz, 5000 -> 1.5kHz, 4500->
 #define ROW_REFRESH_CNT    ((SYS_FREQ/2/ROW_REFRESH_FREQ)-4500)
 #define GSCLK_FREQ     (ROW_REFRESH_FREQ*256)
 //Extra Offset needed to get 406Khz, weird
 #define GSCLK_TIM2_CNT ((SYS_FREQ/2/GSCLK_FREQ)-18)
+#endif
 
 //Refresh Definitions
 #define FRAME_REFRESH_FREQ 50
@@ -37,19 +47,41 @@
 
 #define UART_DATA_AVAIL UARTReceivedDataIsAvailable ( UART2 )
 
-#define RSPI_SDO BIT_5
-#define RSPI_SCLK BIT_4
+#ifndef WS2812  //Scanning Matrix Pin Deffs
+#define VPRG  BIT_4
+#define XLAT  BIT_1
+#define BLANK BIT_0
 
 #define RDEC_3 BIT_10
 #define RDEC_2 BIT_11
 #define RDEC_1 BIT_12
 #define RDEC_0 BIT_14
 
+
+/* Dot Correction Data Allowing Full Current on all Channels */
+uint32_t dcDat[] = { 0x000000FF,0xFFFFFFFF,0xFFFFFFFF,
+                     0x000000FF,0xFFFFFFFF,0xFFFFFFFF,
+                     0x000000FF,0xFFFFFFFF,0xFFFFFFFF,
+                     0x000000FF,0xFFFFFFFF,0xFFFFFFFF};
+ 
+
 //Decoder Mappings
 uint8_t rowlu[] = { 3, 2, 1, 0,
                     4, 5, 6, 7,
                     10, 9, 8, 15,
                     11, 12, 13, 14 };
+#endif
+
+#ifndef WS2812
+#define APFBUFFSIZE 400
+#else
+#define APFBUFFSIZE 768
+
+#define SPI_HIGH 0xE0000000 //This will be sent for highs
+#define SPI_LOW 0x80000000 //This will be sent for lows
+#define SPI_BITSPERBIT 4 //Equals the numbers of bits defined above
+
+#endif
 
 //Mul25 Lookup array to avoid Multiplies
 uint32_t mul25lu[] = {  0,  25,  50,  75,
@@ -66,6 +98,9 @@ uint32_t mul16lu[] = {  0,  16,  32,  48,
 
 //Mul6 Lookup Array to avoid Multiplies
 uint32_t mul6lu[] = {  0,  6,  12,  18};
+
+//Mul256 Lookip Array to avoid Multiplies
+#define MUL256(X) (X<<8)
 
 /* UnpaddedFrameBuffer Upfb[N][256]
  * Holds N *Compressed* Frames at a time straight from UART
@@ -86,6 +121,7 @@ uint32_t mul6lu[] = {  0,  6,  12,  18};
  * PfbHead     : Head of the Pfb, next to be filled into none active frame
  * PfbFull     : Is Pfb Buffer Full
  */
+
 #define PFB_FRAMES 10
 
 uint8_t  PfbFull = 0;
@@ -122,7 +158,7 @@ void pfbPop(void) {
     //Choose Next Free Slot
     tmpHead = PfbHead + 1;
     PfbHead = (tmpHead == PFB_FRAMES) ? 0 : tmpHead; // Roll Round
-    --PfbCount; //Increment Count
+    --PfbCount; //Increment CountI
     PfbFull = (PfbCount >= PFB_FRAMES) ? 1 : 0; // If PfbCount == PFB_FRAMES then Full
 }
 
@@ -168,13 +204,22 @@ inline void pfbDrawFont( uint32_t * pfb , uint8_t x0, uint8_t x1, uint8_t letter
 
 /*ActivePaddedFrames
  * Holds 2 *Uncompressed* Frames ready to be sent via SPI to LED Matrix
- * This takes into account all the extra padding needed for unused PWM channels
- * and extra 4 precision bits padding per LED. There are two of these Frames,
+ *
+ * When in SCAN mode (!WS2812) extra padding needed for unused PWM channels
+ * and extra 4 precision bits padding per LED.
+ *
+ * When in WS2812 mode each bit of pixel data is expanded to 4 bits to fufil
+ * WS2812 Timing requirements.
+ *
+ * There are two of these Frames,
  * One active being used to drive the Display, The other is being filled if Pfb is not empty
- * 
+ *
+ * SCAN:
  * where R = NextRow to SPI 
  * Row Data can be found between 25R -> 25R+23,
  * Row Select can be found in    25R+24,
+ *
+ * WS2812:
  *
  *
  * Apf            : Two Dimensional Array containing the uncompressed data.
@@ -184,7 +229,8 @@ inline void pfbDrawFont( uint32_t * pfb , uint8_t x0, uint8_t x1, uint8_t letter
 uint8_t  ApfActiveFrame = 0;
 uint8_t  ApfNextRow = 0;
 uint8_t  ApfSwitchPending = 0;
-uint32_t Apf [2][400];
+
+uint32_t Apf [2][APFBUFFSIZE];
 
 void apfFlushBuffers(void) {
 uint32_t i = 0; uint32_t j = 0; uint32_t row = 0; uint32_t row_reord = 0 ;
@@ -194,9 +240,10 @@ ApfActiveFrame = 0;
 ApfNextRow = 0;
 ApfSwitchPending = 0;
 for (i = 0; i < 2; i++)
-    for (j = 0; j < 400; j++)
+    for (j = 0; j < APFBUFFSIZE; j++)
         Apf[i][j] = 0;
 
+#ifndef WS2812
 //Iterate Through Apfs and set Row Selects as they stay constant
 for (i = 0; i<2; i++)
     for (row = 0; row <16; row++)
@@ -209,6 +256,7 @@ for (i = 0; i<2; i++)
 
         Apf[i][(mul25lu[row])+24] = ~(1<<row_reord) | 0xFFFF0000;
     }
+#endif
 }
 
 inline uint32_t colorMap8_8Func (uint32_t a) {
@@ -220,6 +268,7 @@ inline uint32_t colorMap8_8Func (uint32_t a) {
 }
 
 void apfPack(uint32_t* unpadded_i, uint32_t* padded_o) {
+#ifndef WS2812 //SCAN Mode APF Decompress
     //Needs to be quick! Use Shifting instead of multiply.
     uint8_t row = 0; //Row of Leds
     uint8_t set = 0; // Set of 4 Leds
@@ -238,7 +287,56 @@ void apfPack(uint32_t* unpadded_i, uint32_t* padded_o) {
             padded_o[o_index_base+3] |= colorMap8_8Func (unpadded_i[i_index_base]) << 12;
             padded_o[o_index_base+4]  = colorMap8_8Func (unpadded_i[i_index_base]) >> 20;
         }
+#else  //WS2812 Mode APF Decompress BB0GG0RR -> 00GGRRBB
+    char spipos = 0;
+    uint32_t *p, *buf;
+    uint32_t pixel;
+    uint32_t i;
+    uint32_t j;
+    uint32_t dir;
+    int32_t bitpos;
 
+    buf = unpadded_i;
+    p = padded_o;
+
+    *p = 0;
+
+    dir = 0; // 0=Inc Ptr !0=Dec Ptr
+    for (i = 0; i < 16; i++) {
+        dir = i & 1; //If Odd Row, Buff Dec else Buff Inc
+        for (j = 0; j < 16; j++) {
+
+            pixel = *buf;
+     //     makeGamma(pixel);
+
+            for (bitpos = 19; bitpos != 23; bitpos--) {
+
+                //To Account for 0xBB0GG0RR rather than 0x00RRGGBB
+                if(bitpos == 11){ bitpos  = 7; }
+                if(bitpos == -1){ bitpos  = 31; }
+
+                if ((pixel & (0x00000001 << bitpos)) > 0) {
+                    *p |= (SPI_HIGH >> spipos);
+                } else {
+                    *p |= (SPI_LOW >> spipos);
+                }
+
+                spipos += SPI_BITSPERBIT;
+
+                if (spipos > 31) {
+                    *(++p) = 0;
+                    spipos = spipos - 32;
+                }
+            }
+            if (dir) buf--;
+            else     buf++;
+           // buf++;
+        }
+        if (dir) buf +=17;
+        else     buf +=15;
+    }
+
+#endif
 }
 
     //RX Statemachine
@@ -347,6 +445,8 @@ DmaChannel chn1 = DMA_CHANNEL1;
 DmaChannel chn2 = DMA_CHANNEL2;
 DmaChannel chn3 = DMA_CHANNEL3;
 uint8_t    dmaTxComplete = 0;
+uint8_t    dmaTxOffIdx = 0;
+uint32_t*  dmaTxFramePtr = 0;
 
 void dmaStreamSetup( uint32_t* pfb ){
    dmaTxComplete = 0;
@@ -396,17 +496,26 @@ void dmaDrawSetup( uint8_t* dcbuff ){
 
 
 // Hardware Setup
-void setupGSCLK(void){
+
+#ifndef WS2812 //SCAN Mode SPI Setup
+    void setupGSCLK(void){
     OpenTimer2(T2_ON, GSCLK_TIM2_CNT);
     OpenOC2( OC_ON | OC_TIMER2_SRC | OC_TOGGLE_PULSE , 0, GSCLK_TIM2_CNT);
 }
+#else          //WS2812 Mode SPI Setup
+#endif
 
 void setupSPI(void){
     // 32 bits/char, input data sampled at end of data, Try inverted Clock
     SpiOpenFlags oFlags=SPI_OPEN_MODE32 |SPI_OPEN_MSTEN;
     // Open SPI module, use SPI channel 1, use flags set above, Divide Fpb by 4
+#ifndef WS2812 //SCAN Mode SPI Setup
     SpiChnOpen(SPI_CHANNEL2, oFlags, 8);
+#else          //WS2812 Mode SPI Setup
+    SpiChnOpen(SPI_CHANNEL2, oFlags, 24); //18/16 gives 833Khz
+#endif
 }
+
 
 void setupUART(void){
     UARTConfigure(UART2, UART_ENABLE_PINS_TX_RX_ONLY);
@@ -431,11 +540,29 @@ void setupFrameRefresh(void){
     INTEnableInterrupts();
 }
 
-void setupRowRefresh(void){
+#ifndef WS2812 //SCAN Mode
+void setupDotCorr(void){
+    uint32_t di;
+    uint32_t l;
 
-    /* Setup Ports for XLAT & BLANK*/
-    mPORTEClearBits(BIT_1 | BIT_0 | RSPI_SCLK |RSPI_SDO);
-    mPORTESetPinsDigitalOut(BIT_1 | BIT_0 | RSPI_SCLK | RSPI_SDO);
+    /* Setup Ports for XLAT, BLANK & VPRG*/
+    mPORTESetBits(VPRG);
+    mPORTEClearBits(XLAT | BLANK);
+    mPORTESetPinsDigitalOut(XLAT | BLANK | VPRG);
+
+    for(di=0; di < 12; di++) SpiChnPutC(SPI_CHANNEL2,dcDat[di]);
+
+    while(SpiChnIsBusy(SPI_CHANNEL2));                  //Wait Till SPI Done
+
+    for(l=0;l<20;l++) mPORTESetBits(XLAT);  //XLAT DC Data
+    mPORTEClearBits(XLAT);                             //Clear XLAT Signal
+    //mPORTESetPinsDigitalOut(VPRG);
+
+    for(l=0;l<20;l++) mPORTESetBits(VPRG);
+    mPORTEClearBits(VPRG);
+}
+
+void setupRowRefresh(void){
 
     /* Setup Row Decoder Pins*/
     mPORTBClearBits(RDEC_3 | RDEC_2 | RDEC_1 | RDEC_0);
@@ -495,7 +622,7 @@ void __ISR(_TIMER_4_VECTOR, ipl6) Timer4Handler(void) {
 
     while(SpiChnIsBusy(SPI_CHANNEL2));                  //Wait Till SPI Done
 
-    mPORTESetBits(BIT_1 | BIT_0);                               //Set XLAT/Blank Signal
+    mPORTESetBits(XLAT | BLANK);                               //Set XLAT/Blank Signal
     rowSelector(ApfNextRow);                                    //Decoder Row Selector
 
     if ((ApfSwitchPending == 1) && (ApfNextRow >= 15)) {       //EoR & Switch Pending
@@ -505,9 +632,99 @@ void __ISR(_TIMER_4_VECTOR, ipl6) Timer4Handler(void) {
     
     ApfNextRow = (ApfNextRow >= 15) ? 0: ApfNextRow+1;  //Increment to Next Row
 
-    for(l=0;l<5;l++) mPORTESetBits(BIT_1 | BIT_0);//AntiFlicker
-    mPORTEClearBits(BIT_1 | BIT_0);                             //Clear XLAT/Blank Signal
+    for(l=0;l<5;l++) mPORTESetBits(XLAT | BLANK);//AntiFlicker
+    mPORTEClearBits(XLAT | BLANK);                             //Clear XLAT/Blank Signal
 
+}
+#endif
+
+/*void genGammaMap(){
+    // Calculates gamma values
+    for (float f = 0; f < 256; f++) {
+        ledTweak[(unsigned char) f] = (unsigned char) round(
+                (f * (f / 256) + 1)
+                );
+    }
+
+    ledTweak[0] = 0;
+}*/
+
+uint8_t dmaTxLedDone;
+
+void sendWS2812(uint32_t* frame ){
+   dmaTxComplete = 0;
+   dmaTxOffIdx   = 1;
+   dmaTxFramePtr = frame;
+   dmaTxLedDone = 0;
+   //Offset
+   //0,256,512,768..3840,
+   //0, 1,  2,  3 ..15
+   // Configure the dma channels to chain
+   DmaChnOpen(chn0,DMA_CHN_PRI0,DMA_OPEN_DEFAULT);
+   //DmaChnOpen(chn1,DMA_CHN_PRI1,DMA_OPEN_CHAIN_HI);
+   //UART2 rx interrupt to start transfer, stops after 1024KB has be transferered
+   DmaChnSetEventControl(chn0, DMA_EV_START_IRQ_EN | DMA_EV_START_IRQ(_SPI2_TX_IRQ));
+   //DmaChnSetEventControl(chn1, DMA_EV_START_IRQ_EN | DMA_EV_START_IRQ(_SPI2_TX_IRQ));
+   // set the transfer source and dest addresses, source and dest sizes and the cell size
+   DmaChnSetTxfer(chn0, (void*)dmaTxFramePtr,  (void*)&SPI2BUF,  256, 4, 4);
+   //DmaChnSetTxfer(chn1, (void*)dmaTxFramePtr+MUL256(1),  (void*)&SPI2BUF,  4, 4, 4);
+   //DCH1ECON |= _DCH1ECON_CFORCE_MASK;
+   //DmaChnSetTxfer(chn0, (void*)dmaTxFramePtr+MUL256(0),  (void*)&SPI2BUF,  256, 4, 4);
+   //DmaChnSetTxfer(chn1, (void*)dmaTxFramePtr+MUL256(1),  (void*)&SPI2BUF,  256, 4, 4);
+   DmaChnSetEvEnableFlags(chn0, DMA_EV_BLOCK_DONE); // enable the transfer done interrupt on final chained dma
+   //DmaChnSetEvEnableFlags(chn1, DMA_EV_BLOCK_DONE);
+
+   // Set up DMA Block Complete interrupt with a priority of 7 and zero sub-priority
+   INTSetVectorPriority(INT_DMA_0_VECTOR, INT_PRIORITY_LEVEL_7);
+   INTSetVectorSubPriority(INT_DMA_0_VECTOR, INT_SUB_PRIORITY_LEVEL_0);
+   INTEnable(INT_DMA0, INT_ENABLED);
+   //INTSetVectorPriority(INT_DMA_1_VECTOR, INT_PRIORITY_LEVEL_7);
+   //INTSetVectorSubPriority(INT_DMA_1_VECTOR, INT_SUB_PRIORITY_LEVEL_0);
+   //INTEnable(INT_DMA1, INT_ENABLED);
+
+   // Enable multi-vector interrupts
+   INTConfigureSystem(INT_SYSTEM_CONFIG_MULT_VECTOR);
+   INTEnableInterrupts();
+   // enable the chn0 to start the DMA Chain
+   DmaChnEnable(chn0);
+   //SPI2BUF = 0;
+   DmaChnForceTxfer(chn0);
+
+}
+
+// Ping Pong Chn0 WS2812B ISR
+void __ISR(_DMA_0_VECTOR, ipl7) DMA0Handler(void) {
+    
+    INTClearFlag(INT_DMA0);
+    //if (dmaTxOffIdx < 15) {
+   if (dmaTxOffIdx < 12) {
+        DmaChnOpen(chn0,DMA_CHN_PRI0,DMA_OPEN_DEFAULT);
+        //DmaChnOpen(chn0,DMA_CHN_PRI0,DMA_OPEN_DEFAULT|DMA_OPEN_DET_EN);
+        DmaChnSetEventControl(chn0, DMA_EV_START_IRQ_EN | DMA_EV_START_IRQ(_SPI2_TX_IRQ));
+        DmaChnSetTxfer(chn0, (void*)dmaTxFramePtr+MUL256(dmaTxOffIdx),  (void*)&SPI2BUF,  256, 4, 4);
+        DmaChnSetEvEnableFlags(chn0, DMA_EV_BLOCK_DONE); // enable the transfer done interrupt on final chained dma
+        INTEnable(INT_DMA0, INT_ENABLED);
+        DmaChnEnable(chn0);
+        //DmaChnForceTxfer(chn0);
+        ++dmaTxOffIdx;
+    }
+         //mPORTDSetBits(BIT_1);
+         //while(1);
+}
+
+// Ping Pong Chn1 WS2812B ISR
+void __ISR(_DMA_1_VECTOR, ipl7) DMA1Handler(void) {
+    
+    //DmaChnSetTxfer(chn1, (void*)dmaTxFramePtr+MUL256(dmaTxOffIdx),  (void*)&SPI2BUF,  256, 4, 4);
+    //DmaChnSetTxfer(chn1, (void*)dmaTxFramePtr+MUL256(dmaTxOffIdx),  (void*)&SPI2BUF,  1, 4, 4);
+    //INTClearFlag(INT_DMA1);
+    //if (dmaTxOffIdx <= 6) {
+    //DmaChnSetTxfer(chn0, (void*)dmaTxFramePtr+MUL256(dmaTxOffIdx),  (void*)&SPI2BUF,  4, 4, 4);
+    //DmaChnSetTxfer(chn1, (void*)dmaTxFramePtr+MUL256(dmaTxOffIdx+1),  (void*)&SPI2BUF,  4, 4, 4);
+    //DmaChnEnable(chn0);
+    //DmaChnForceTxfer(chn0);
+    //dmaTxOffIdx += 2;
+   // }
 }
 
 // Frame Refresh Interrupt Handler
@@ -515,7 +732,6 @@ void __ISR(_TIMER_3_VECTOR, ipl5) Timer3Handler(void) {
     uint32_t i = 0;
     uint32_t lastPfb = 0;
     uint32_t ApfToFill = (ApfActiveFrame) ? 0 : 1;
-    //mPORTEToggleBits(BIT_1 | BIT_0);
 
     INTClearFlag(INT_T3);                               // Clear the interrupt flag
 
@@ -524,26 +740,40 @@ void __ISR(_TIMER_3_VECTOR, ipl5) Timer3Handler(void) {
         apfPack(Pfb[PfbHead], Apf[ApfToFill]);
         lastPfb = PfbHead;
         pfbPop();
-        ApfSwitchPending = 1;
         ///////////////////////////////////////
         for (i = 0; i < 256; i++)
             Pfb[lastPfb][i] = 0;
         ///////////////////////////////////////
+#ifndef WS2812
+         ApfSwitchPending = 1; //Used in Scan mode to wait till Row is finished before switch
+#else
+         ApfActiveFrame = ApfToFill;
+#endif
     }
+
+#ifdef WS2812
+    sendWS2812(Apf[ApfActiveFrame]);
+#endif
+
+
 
 }
 
 // DMA3 Block Complete Interrupt Handler
-void __ISR(_DMA_3_VECTOR, ipl7) DMA3Handler(void) {
-    dmaTxComplete = 1;
-    INTClearFlag(INT_DMA3);                               // Clear the interrupt flag
-}
+//void __ISR(_DMA_3_VECTOR, ipl7) DMA3Handler(void) {
+//    dmaTxComplete = 1;
+//    INTClearFlag(INT_DMA3);                               // Clear the interrupt flag
+//}
 
 
 int main(void) {
 
     SYSTEMConfig(SYS_FREQ, SYS_CFG_WAIT_STATES |SYS_CFG_PCACHE);
     mJTAGPortEnable(DEBUG_JTAGPORT_OFF);
+
+    mPORTDSetBits(BIT_1);
+    mPORTDClearBits(BIT_1);
+    mPORTDSetPinsDigitalOut(BIT_1);
 
     /* Setup UART Interface to RaspberryPi*/
     setupUART();
@@ -554,12 +784,20 @@ int main(void) {
     apfFlushBuffers();
 
     apfPack(splash_hackaday, Apf[0]); // Load Debug PFB into APF
-    /* Setup GSCLK using TIMER2 & OC2 */
-    setupGSCLK();
+
     /* Setup SPI Interface to LED Matrix*/
     setupSPI();
+
+
+#ifndef WS2812
+    /* Setup Dot Correction Values of TLC5940 Driver Chips*/
+    setupDotCorr();
+    /* Setup GSCLK using TIMER2 & OC2 */
+    setupGSCLK();
     /*Setup RowRefresh Clk TIMER4 */
     setupRowRefresh();
+#endif
+
     /*Setup Buffer Refresh*/
     setupFrameRefresh();
     
