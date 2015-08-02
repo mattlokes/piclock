@@ -9,6 +9,7 @@
 #=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
 
 import datetime
+import copy
 
 from framework.components.application import *
 
@@ -38,7 +39,7 @@ class clockApp():
       self.parent = parent
 
    def startup(self):
-      frameLib.CreateBlankFrame(self.frame)
+      #frameLib.CreateBlankFrame(self.frame)
       self.forceUpdate = True
 
    def incomingRx ( self, cmd ):
@@ -70,8 +71,10 @@ class clockApp():
       timeHistoryCompare=str(get_h)+str(get_m)
 
       if self.timeHistory != timeHistoryCompare or self.forceUpdate:
-         frameLib.CreateBlankFrame(self.frame)
-         self.CreateTimeFrame( self.frame, get_h, get_m, self.clockMode, self.timeColour )
+         tmpFrame = []
+         frameLib.CreateBlankFrame(tmpFrame)
+         self.CreateTimeFrame( tmpFrame, get_h, get_m, self.clockMode, self.timeColour )
+         self.frame = copy.deepcopy(tmpFrame)
          self.framePush(self.frame)
          self.timeHistory=timeHistoryCompare
          self.forceUpdate = False

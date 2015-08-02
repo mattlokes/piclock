@@ -14,6 +14,7 @@
 
     <!-- Custom styles for this template -->
     <link href="/navmenu/css/navmenu-push.css" rel="stylesheet">
+    <link href="/button/css/custom-buttons.css" rel="stylesheet">
 
   </head>
 
@@ -97,7 +98,7 @@
 
 <script type="text/javascript" src="http://l2.io/ip.js?var=myip"></script>
 <script>
-var wsUri = "ws://192.168.1.113:5005/ws";
+var wsUri;
 var output;
 var websocket;
 var nInit = 0;
@@ -114,6 +115,9 @@ function init()
   $('#btnLeft').click(function(){sendLeft(); return false; });
   $('#btnEnter').click(function(){sendEnter(); return false; });
   output = document.getElementById("output");
+
+  //set wsUri to location.host
+  wsUri = "ws://" + location.hostname + ":5005/ws";
 
   websocket = new WebSocket(wsUri);
   websocket.onopen = function(evt) { onOpen(evt) };
