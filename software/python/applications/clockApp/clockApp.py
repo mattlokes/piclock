@@ -26,20 +26,22 @@ class clockApp():
    rxPollTime = 0.02 #50Hz  
    
    forceUpdate = False
+   tranPreview = False
 
    clockMode = "WORD"
    todMode = 0
    
    frame = []
-   timeColour = [0x00,0xFF,0x00]  #Default Colour
-   #timeColour = [0x12,0xD7,0xFF]  #Default Colour
-   timeHistory=""
+   timeTranBuff = []
+   timeColour = [0xFF,0xFF,0xFF]  #Default Colour
+   timeTranSpeed = 1              #Number of appTicks between Transition Frames
+   timeTranMode  = "NONE"         #
+   timeHistory   = ""
 
    def __init__(self, parent, **kwargs):
       self.parent = parent
 
    def startup(self):
-      #frameLib.CreateBlankFrame(self.frame)
       self.forceUpdate = True
 
    def incomingRx ( self, cmd ):
@@ -62,6 +64,14 @@ class clockApp():
          else:                      self.todMode = 0
          
          self.forceUpdate = True
+      
+      # Time Format Change
+      if cmd['typ'] == "TRAN":
+         self.timeTranMode = cmd['dat']
+         #print self.timeTranMode
+         self.forceUpdate = True
+         self.tranPreview = True
+         #pass
 
    # Main Application Loop
    def appTick(self):
@@ -71,20 +81,49 @@ class clockApp():
       timeHistoryCompare=str(get_h)+str(get_m)
 
       if self.timeHistory != timeHistoryCompare or self.forceUpdate:
-         tmpFrame = []
-         frameLib.CreateBlankFrame(tmpFrame)
-         self.CreateTimeFrame( tmpFrame, get_h, get_m, self.clockMode, self.timeColour )
-         self.frame = copy.deepcopy(tmpFrame)
-         self.framePush(self.frame)
+         newFrame = []
+         frameLib.CreateBlankFrame( newFrame )
+         self.CreateTimeFrame( newFrame, get_h, get_m, self.clockMode, self.timeColour )
+         
+         if self.forceUpdate and not self.tranPreview:
+            self.CreateTimeTran ( self.frame, newFrame, self.timeTranBuff, "NONE" ) #ForceUpdate, no Transition
+         else:
+            self.CreateTimeTran ( self.frame, newFrame, self.timeTranBuff, self.timeTranMode )
+
          self.timeHistory=timeHistoryCompare
          self.forceUpdate = False
+         self.tranPreview = False
+      
+      if len(self.timeTranBuff) > 0 :
+         self.frame = copy.deepcopy(self.timeTranBuff.pop(0))
+         self.framePush(self.frame)
+      #print str(len(self.timeTranBuff))
    
    def framePush(self, frame):
       self.parent.txQueue.put({'dst': "DISP",
                                'src': self.ID,
                                'typ': "FRAME",
                                'dat': frame})
-   
+  
+   def CreateTimeTran(self, oframe, nframe, frameBuff, mode ):
+      if mode == "NONE":
+         frameBuff.append(copy.deepcopy(nframe))
+      elif mode == "FADE":
+         pass
+      elif mode == "HSLIDE":
+         for i in range (0,16):
+            oframe.pop(0)
+            oframe.append([0x00,0x00,0x00])
+            for r in range(0,16):
+               oframe[(16*r+15)] = [0x00,0x00,0x00]
+            frameBuff.append(copy.deepcopy(oframe))
+         frameBuff.append(copy.deepcopy(nframe))
+      elif mode == "VSLIDE":
+         pass
+      elif mode == "COLFADE":
+         pass
+      
+ 
    def CreateTimeFrame(self, frame, hour, mins, mode, colour ):
       if mode == "WORD":
          self.CreateWordTimeFrame(frame, hour, mins, colour, self.todMode)

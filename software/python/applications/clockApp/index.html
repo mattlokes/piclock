@@ -86,6 +86,25 @@
         <script type="text/javascript"> $("#ampm").bootstrapSwitch(); </script>
       </div>
       <div><hr></div>
+      
+      <div class="row">
+        <div class="col-xs-3">
+          <label class="lead">Transition: </label>
+        </div>
+        <label for="tran" class="control-label input-group"></label>
+        <div class="btn-group col-xs-9" data-toggle="buttons">
+          <label class="btn btn-default active">
+            <input type="radio" name="tran" id="tran_none" checked="">None
+          </label>
+          <label class="btn btn-default">
+            <input type="radio" name="tran" id="tran_hslide">HSlide
+          </label>
+          <label class="btn btn-default">
+            <input type="radio" name="tran" id="tran_vslide">VSlide
+          </label>
+        </div>
+      </div>
+      <div><hr></div>
  
       <div class="row">
         <div> *Only available in Word mode </div>
@@ -105,6 +124,7 @@ var wsUri;
 var output;
 var colval = document.getElementById('col').value;
 var modeVal = "";
+var tranVal = "";
 var todVal = "";
 var nInit = 0;
 var sendTimerObj;
@@ -153,6 +173,16 @@ function timerfun()
   {
     todVal = tmpTod;
     doSend("#CLOCK#TOD#"+todVal+"#");
+  }
+  
+  var tmpTran;
+  if(document.getElementById('tran_none').checked) { tmpTran = "NONE"; }
+  if(document.getElementById('tran_hslide').checked) { tmpTran = "HSLIDE"; }
+  if(document.getElementById('tran_vslide').checked) { tmpTran = "VSLIDE"; }
+  if(tmpTran != tranVal)
+  {
+    tranVal = tmpTran;
+    doSend("#CLOCK#TRAN#"+tranVal+"#");
   }
 
   
