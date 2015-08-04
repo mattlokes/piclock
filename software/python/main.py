@@ -40,6 +40,7 @@ fakeSerial=False
 fastRx=True
 noDisp=False
 debugSys=False
+platform="PI"
 
 defaultApp = "CLOCK"
 
@@ -50,6 +51,7 @@ if len(sys.argv) > 1:
    if "-noDisp"   in sys.argv: noDisp=True
    if "-debugRx"  in sys.argv: fastRx=False
    if "-debugSys" in sys.argv: debugSys=True
+   if "-pc"       in sys.argv: platform ="PC"
 
 sys = sysPrint("MAIN", debugSys)
 
@@ -61,7 +63,7 @@ modules = {
            {'class': wsInterface, 'type': "IFACE", 'obj': None, 'enabled': True,
             'txPipe': None, 'rxPipe': None, 'kwargs': {'debugSys': debugSys} },
            'WEBSERVER': 
-           {'class': webServer, 'type': "IFACE", 'obj': None, 'enabled': True},
+           {'class': webServer, 'type': "IFACE", 'obj': None, 'enabled': True, 'kwargs': {'platform': platform} },
            'CLOCK':
            {'class': clockApp, 'type': "APP", 'obj': None, 'enabled': True,
             'txPipe': None, 'rxPipe': None, 'kwargs': {'debugSys':debugSys} },
