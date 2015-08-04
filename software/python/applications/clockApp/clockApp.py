@@ -111,12 +111,16 @@ class clockApp():
       elif mode == "FADE":
          pass
       elif mode == "HSLIDE":
+         #Slide Out
          for i in range (0,16):
-            oframe.pop(0)
-            oframe.append([0x00,0x00,0x00])
-            for r in range(0,16):
-               oframe[(16*r+15)] = [0x00,0x00,0x00]
+            frameLib.ShiftFrameLeft(oframe, 1)
             frameBuff.append(copy.deepcopy(oframe))
+         #Slide In
+         for i in range(15,0,-1): #15->1
+            tmp = copy.deepcopy(nframe)
+            frameLib.ShiftFrameRight(tmp, i)
+            frameBuff.append(tmp)
+            
          frameBuff.append(copy.deepcopy(nframe))
       elif mode == "VSLIDE":
          pass
