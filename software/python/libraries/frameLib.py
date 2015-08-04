@@ -90,6 +90,20 @@ class frameLib ():
          frame.pop(256)
          for r in range(0,16):
             frame[(16*r)] = [0x00,0x00,0x00]
+   
+   @staticmethod
+   def ShiftFrameUp (frame ,shiftnum):
+      for i in range(0,shiftnum):
+         for r in range(0,16): 
+            frame.pop(0)
+            frame.append([0x00,0x00,0x00])
+   
+   @staticmethod
+   def ShiftFrameDown (frame ,shiftnum):
+      for i in range(0,shiftnum):
+         for r in range(0,16): 
+            frame.insert(0,[0x00,0x00,0x00])
+            frame.pop(256)
 
    @staticmethod 
    def CreateEqualizerFrame( frame , aChans) :

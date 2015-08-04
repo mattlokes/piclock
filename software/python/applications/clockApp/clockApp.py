@@ -123,7 +123,17 @@ class clockApp():
             
          frameBuff.append(copy.deepcopy(nframe))
       elif mode == "VSLIDE":
-         pass
+         #Slide Out
+         for i in range (0,16):
+            frameLib.ShiftFrameUp(oframe, 1)
+            frameBuff.append(copy.deepcopy(oframe))
+         #Slide In
+         for i in range(15,0,-1): #15->1
+            tmp = copy.deepcopy(nframe)
+            frameLib.ShiftFrameDown(tmp, i)
+            frameBuff.append(tmp)
+            
+         frameBuff.append(copy.deepcopy(nframe))
       elif mode == "COLFADE":
          pass
       
