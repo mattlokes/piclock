@@ -9,6 +9,7 @@
 #include <stdlib.h>
 #include <stdint.h>
 #include <plib.h>
+#include <math.h>
 
 #include "colour_map.h"
 #include "splash_img.h"
@@ -29,59 +30,19 @@
 
 #define SYS_FREQ (80000000L)
 
-#ifndef WS2812 //Scanning Matrix Frequency Definitions
-//Frequency Definitions
-#define LED_FREQ       100
-
-#define ROW_REFRESH_FREQ   (LED_FREQ*16)
-//Another Extra Offset...WTF 6000-> 1.579kHz, 5000 -> 1.5kHz, 4500->
-#define ROW_REFRESH_CNT    ((SYS_FREQ/2/ROW_REFRESH_FREQ)-4500)
-#define GSCLK_FREQ     (ROW_REFRESH_FREQ*256)
-//Extra Offset needed to get 406Khz, weird
-#define GSCLK_TIM2_CNT ((SYS_FREQ/2/GSCLK_FREQ)-18)
-#endif
-
 //Refresh Definitions
 #define FRAME_REFRESH_FREQ 50
 #define FRAME_REFRESH_CNT  ((SYS_FREQ/2/FRAME_REFRESH_FREQ)-8890)
+#define TIMEOUT_CNT 4*FRAME_REFRESH_CNT  //Lazyness make it 40ms Timeout
 
 #define UART_DATA_AVAIL UARTReceivedDataIsAvailable ( UART2 )
+#define UART_STALL BIT_10
 
-#ifndef WS2812  //Scanning Matrix Pin Deffs
-#define VPRG  BIT_4
-#define XLAT  BIT_1
-#define BLANK BIT_0
-
-#define RDEC_3 BIT_10
-#define RDEC_2 BIT_11
-#define RDEC_1 BIT_12
-#define RDEC_0 BIT_14
-
-
-/* Dot Correction Data Allowing Full Current on all Channels */
-uint32_t dcDat[] = { 0x000000FF,0xFFFFFFFF,0xFFFFFFFF,
-                     0x000000FF,0xFFFFFFFF,0xFFFFFFFF,
-                     0x000000FF,0xFFFFFFFF,0xFFFFFFFF,
-                     0x000000FF,0xFFFFFFFF,0xFFFFFFFF};
- 
-
-//Decoder Mappings
-uint8_t rowlu[] = { 3, 2, 1, 0,
-                    4, 5, 6, 7,
-                    10, 9, 8, 15,
-                    11, 12, 13, 14 };
-#endif
-
-#ifndef WS2812
-#define APFBUFFSIZE 400
-#else
 #define APFBUFFSIZE 768
 
 #define SPI_HIGH 0xE0000000 //This will be sent for highs
 #define SPI_LOW 0x80000000 //This will be sent for lows
 #define SPI_BITSPERBIT 4 //Equals the numbers of bits defined above
-
-#endif
 
 //Mul25 Lookup array to avoid Multiplies
 uint32_t mul25lu[] = {  0,  25,  50,  75,
@@ -106,11 +67,11 @@ uint32_t mul6lu[] = {  0,  6,  12,  18};
  * Holds N *Compressed* Frames at a time straight from UART
  * Each Frame contains 256 * 32bit words in the format:
  *
- * 31                           0
+ * 31                          0
  *  -----------------------------
- *  |  Rn  |0x0|  Gn  |0x0| Bn  |
+ *  | 0x00 |  Rn  |  Gn  |  Bn  |
  *  -----------------------------
- *     8b   4b   8b    4b   8b
+ *     8b     8b     8b     8b
  *
  * Each 32bit word is a pixel, where index   0 -> 15 is row one
  *                                   index 240 -> 255 is row 16
@@ -243,20 +204,6 @@ for (i = 0; i < 2; i++)
     for (j = 0; j < APFBUFFSIZE; j++)
         Apf[i][j] = 0;
 
-#ifndef WS2812
-//Iterate Through Apfs and set Row Selects as they stay constant
-for (i = 0; i<2; i++)
-    for (row = 0; row <16; row++)
-    {
-        // Reorder Row select values due to wiring order
-        if (row < 4)        row_reord = row+12;
-        else if (row < 8)   row_reord = row+4;
-        else if (row <12)   row_reord = row-4;
-        else                row_reord = row-12;
-
-        Apf[i][(mul25lu[row])+24] = ~(1<<row_reord) | 0xFFFF0000;
-    }
-#endif
 }
 
 inline uint32_t colorMap8_8Func (uint32_t a) {
@@ -268,26 +215,6 @@ inline uint32_t colorMap8_8Func (uint32_t a) {
 }
 
 void apfPack(uint32_t* unpadded_i, uint32_t* padded_o) {
-#ifndef WS2812 //SCAN Mode APF Decompress
-    //Needs to be quick! Use Shifting instead of multiply.
-    uint8_t row = 0; //Row of Leds
-    uint8_t set = 0; // Set of 4 Leds
-    uint32_t i_index_base = 0;
-    uint32_t o_index_base = 0;
-
-    for(row = 0; row < 16; row++)
-        for (set = 0; set < 4; set++){
-            o_index_base = mul25lu[row] + mul6lu[set];
-            i_index_base = (row<<4) + (set<<2);
-            padded_o[o_index_base]    = colorMap8_8Func (unpadded_i[i_index_base+3]);
-            padded_o[o_index_base+1]  = colorMap8_8Func (unpadded_i[i_index_base+2]) << 4;
-            padded_o[o_index_base+2]  = colorMap8_8Func (unpadded_i[i_index_base+2]) >> 28;
-            padded_o[o_index_base+2] |= colorMap8_8Func (unpadded_i[i_index_base+1]) << 8;
-            padded_o[o_index_base+3]  = colorMap8_8Func (unpadded_i[i_index_base+1]) >> 24;
-            padded_o[o_index_base+3] |= colorMap8_8Func (unpadded_i[i_index_base]) << 12;
-            padded_o[o_index_base+4]  = colorMap8_8Func (unpadded_i[i_index_base]) >> 20;
-        }
-#else  //WS2812 Mode APF Decompress BB0GG0RR -> 00GGRRBB
     char spipos = 0;
     uint32_t *p, *buf;
     uint32_t pixel;
@@ -307,13 +234,9 @@ void apfPack(uint32_t* unpadded_i, uint32_t* padded_o) {
         for (j = 0; j < 16; j++) {
 
             pixel = *buf;
-     //     makeGamma(pixel);
+            //alterGamma(&pixel);
 
-            for (bitpos = 19; bitpos != 23; bitpos--) {
-
-                //To Account for 0xBB0GG0RR rather than 0x00RRGGBB
-                if(bitpos == 11){ bitpos  = 7; }
-                if(bitpos == -1){ bitpos  = 31; }
+            for (bitpos = 15; bitpos != -1; bitpos--) {
 
                 if ((pixel & (0x00000001 << bitpos)) > 0) {
                     *p |= (SPI_HIGH >> spipos);
@@ -327,6 +250,10 @@ void apfPack(uint32_t* unpadded_i, uint32_t* padded_o) {
                     *(++p) = 0;
                     spipos = spipos - 32;
                 }
+
+                //To Account for 0x00RRGGBB rather than 0x00GGRRBB
+                if(bitpos == 8){ bitpos  = 24; } //Start at 23
+                if(bitpos == 16){ bitpos  = 8; } // Start at 7
             }
             if (dir) buf--;
             else     buf++;
@@ -335,13 +262,12 @@ void apfPack(uint32_t* unpadded_i, uint32_t* padded_o) {
         if (dir) buf +=17;
         else     buf +=15;
     }
-
-#endif
 }
 
     //RX Statemachine
     typedef enum {CMD_SM, DECODE_CMD_SM, DECODE_DRAW_SM, DECODE_STREAM_SM } RxSm_t;
     RxSm_t RxState = CMD_SM;
+    uint8_t RxStateReset = 0;
 
     //RX Transactions
     //2 Byte Command Transactions {'C', <ENUM>}
@@ -353,6 +279,7 @@ void apfPack(uint32_t* unpadded_i, uint32_t* padded_o) {
     typedef enum {PIXEL_DRAW=0, HLINE_DRAW=1, VLINE_DRAW=2, LINE_DRAW=4, FONT_DRAW=8,
                   RECT_DRAW=16} RxDrawCmd_t; //8Byte
 
+    volatile uint8_t uartStall = 0;
 
 inline uint8_t uartGetByte(void){
    uint8_t a = 0;
@@ -397,6 +324,15 @@ void uartDebug(uint8_t* mess, uint8_t messLen){
 #endif
 }
 
+inline void uartSetStall( void ) {
+    mPORTBSetBits(UART_STALL);
+    uartStall = 1;
+}
+
+inline void uartClearStall (void){
+    mPORTBClearBits(UART_STALL);
+    uartStall = 0;
+}
 
 uint8_t dcpParse(uint32_t* pfb, uint64_t* dcPtr) {
     uint8_t term = 0;
@@ -444,27 +380,27 @@ DmaChannel chn0 = DMA_CHANNEL0;
 DmaChannel chn1 = DMA_CHANNEL1;
 DmaChannel chn2 = DMA_CHANNEL2;
 DmaChannel chn3 = DMA_CHANNEL3;
-uint8_t    dmaTxComplete = 0;
+uint8_t    dmaRxComplete = 0;
+uint8_t    dmaRxLast = 0;
 uint8_t    dmaTxOffIdx = 0;
 uint32_t*  dmaTxFramePtr = 0;
+uint32_t*  dmaRxPfb;
 
 void dmaStreamSetup( uint32_t* pfb ){
-   dmaTxComplete = 0;
+   dmaRxComplete = 0;
+   dmaRxLast = 0;
+   dmaRxPfb  = pfb;
    // Configure the dma channels to chain
-   DmaChnOpen(chn0,DMA_CHN_PRI0,DMA_OPEN_DEFAULT);
-   DmaChnOpen(chn1,DMA_CHN_PRI0,DMA_OPEN_CHAIN_HI);
-   DmaChnOpen(chn2,DMA_CHN_PRI0,DMA_OPEN_CHAIN_HI);
+   DmaChnOpen(chn2,DMA_CHN_PRI0,DMA_OPEN_DEFAULT);
    DmaChnOpen(chn3,DMA_CHN_PRI0,DMA_OPEN_CHAIN_HI);
    //UART2 rx interrupt to start transfer, stops after 1024KB has be transferered
-   DmaChnSetEventControl(chn0, DMA_EV_START_IRQ_EN | DMA_EV_START_IRQ(_UART2_RX_IRQ));
-   DmaChnSetEventControl(chn1, DMA_EV_START_IRQ_EN | DMA_EV_START_IRQ(_UART2_RX_IRQ));
    DmaChnSetEventControl(chn2, DMA_EV_START_IRQ_EN | DMA_EV_START_IRQ(_UART2_RX_IRQ));
    DmaChnSetEventControl(chn3, DMA_EV_START_IRQ_EN | DMA_EV_START_IRQ(_UART2_RX_IRQ));
    // set the transfer source and dest addresses, source and dest sizes and the cell size
-   DmaChnSetTxfer(chn0, (void*)&U2RXREG, (void*)pfb,     1, 256, 1);
-   DmaChnSetTxfer(chn1, (void*)&U2RXREG, (void*)pfb+256, 1, 256, 1);
-   DmaChnSetTxfer(chn2, (void*)&U2RXREG, (void*)pfb+512, 1, 256, 1);
-   DmaChnSetTxfer(chn3, (void*)&U2RXREG, (void*)pfb+768, 1, 256, 1);
+   DmaChnSetTxfer(chn2, (void*)&U2RXREG, (void*)dmaRxPfb,     1, 256, 1);
+   DmaChnSetTxfer(chn3, (void*)&U2RXREG, (void*)dmaRxPfb+256, 1, 256, 1);
+   //DmaChnSetTxfer(chn2, (void*)&U2RXREG, (void*)pfb+512, 1, 256, 1);
+   //DmaChnSetTxfer(chn3, (void*)&U2RXREG, (void*)pfb+768, 1, 256, 1);
    DmaChnSetEvEnableFlags(chn3, DMA_EV_BLOCK_DONE); // enable the transfer done interrupt on final chained dma
 
    // Set up DMA Block Complete interrupt with a priority of 7 and zero sub-priority 
@@ -476,7 +412,7 @@ void dmaStreamSetup( uint32_t* pfb ){
    INTConfigureSystem(INT_SYSTEM_CONFIG_MULT_VECTOR);
    INTEnableInterrupts();
    // enable the chn0 to start the DMA Chain
-   DmaChnEnable(chn0);
+   DmaChnEnable(chn2);
 }
 
 void dmaDrawSetup( uint8_t* dcbuff ){
@@ -497,27 +433,20 @@ void dmaDrawSetup( uint8_t* dcbuff ){
 
 // Hardware Setup
 
-#ifndef WS2812 //SCAN Mode SPI Setup
-    void setupGSCLK(void){
-    OpenTimer2(T2_ON, GSCLK_TIM2_CNT);
-    OpenOC2( OC_ON | OC_TIMER2_SRC | OC_TOGGLE_PULSE , 0, GSCLK_TIM2_CNT);
-}
-#else          //WS2812 Mode SPI Setup
-#endif
-
 void setupSPI(void){
     // 32 bits/char, input data sampled at end of data, Try inverted Clock
     SpiOpenFlags oFlags=SPI_OPEN_MODE32 |SPI_OPEN_MSTEN;
     // Open SPI module, use SPI channel 1, use flags set above, Divide Fpb by 4
-#ifndef WS2812 //SCAN Mode SPI Setup
-    SpiChnOpen(SPI_CHANNEL2, oFlags, 8);
-#else          //WS2812 Mode SPI Setup
     SpiChnOpen(SPI_CHANNEL2, oFlags, 24); //18/16 gives 833Khz
-#endif
 }
 
 
 void setupUART(void){
+
+    // Use PortB Pin to signal UART Stall through CTS faking when PFB is full.
+    mPORTBClearBits(UART_STALL);
+    mPORTBSetPinsDigitalOut(UART_STALL);
+
     UARTConfigure(UART2, UART_ENABLE_PINS_TX_RX_ONLY);
     //UARTSetFifoMode(UART2, UART_INTERRUPT_ON_TX_NOT_FULL | UART_INTERRUPT_ON_RX_NOT_EMPTY);
     UARTSetLineControl(UART2, UART_DATA_SIZE_8_BITS | UART_PARITY_NONE | UART_STOP_BITS_1);
@@ -540,126 +469,51 @@ void setupFrameRefresh(void){
     INTEnableInterrupts();
 }
 
-#ifndef WS2812 //SCAN Mode
-void setupDotCorr(void){
-    uint32_t di;
-    uint32_t l;
+void startTimeoutTimer(void){
+       // Configure Timer 3
+    OpenTimer2(T2_ON | T2_PS_1_256, TIMEOUT_CNT);
 
-    /* Setup Ports for XLAT, BLANK & VPRG*/
-    mPORTESetBits(VPRG);
-    mPORTEClearBits(XLAT | BLANK);
-    mPORTESetPinsDigitalOut(XLAT | BLANK | VPRG);
-
-    for(di=0; di < 12; di++) SpiChnPutC(SPI_CHANNEL2,dcDat[di]);
-
-    while(SpiChnIsBusy(SPI_CHANNEL2));                  //Wait Till SPI Done
-
-    for(l=0;l<20;l++) mPORTESetBits(XLAT);  //XLAT DC Data
-    mPORTEClearBits(XLAT);                             //Clear XLAT Signal
-    //mPORTESetPinsDigitalOut(VPRG);
-
-    for(l=0;l<20;l++) mPORTESetBits(VPRG);
-    mPORTEClearBits(VPRG);
-}
-
-void setupRowRefresh(void){
-
-    /* Setup Row Decoder Pins*/
-    mPORTBClearBits(RDEC_3 | RDEC_2 | RDEC_1 | RDEC_0);
-    mPORTBSetPinsDigitalOut(RDEC_3 | RDEC_2 | RDEC_1 | RDEC_0);
-    
-    // Configure Timer 4
-    OpenTimer4(T4_ON | T4_PS_1_2, ROW_REFRESH_CNT);
-
-    // Set up Timer 4 interrupt with a priority of 6 and zero sub-priority
-    INTEnable(INT_T4, INT_ENABLED);
-    INTSetVectorPriority(INT_TIMER_4_VECTOR, INT_PRIORITY_LEVEL_6);
-    INTSetVectorSubPriority(INT_TIMER_4_VECTOR, INT_SUB_PRIORITY_LEVEL_0);
+    // Set up Timer 2 interrupt with a priority of 6 and zero sub-priority
+    INTEnable(INT_T2, INT_ENABLED);
+    INTSetVectorPriority(INT_TIMER_2_VECTOR, INT_PRIORITY_LEVEL_5);
+    INTSetVectorSubPriority(INT_TIMER_2_VECTOR, INT_SUB_PRIORITY_LEVEL_0);
 
     // Enable multi-vector interrupts
     INTConfigureSystem(INT_SYSTEM_CONFIG_MULT_VECTOR);
     INTEnableInterrupts();
-}
-
-inline void rowSelector(uint8_t row){
-    uint8_t decoder_val = rowlu[row];
-    mPORTBClearBits(RDEC_3 | RDEC_2 | RDEC_1 | RDEC_0);
-    switch(decoder_val)
-    {
-        case 0:                                                   break;
-        case 1: mPORTBSetBits(RDEC_0);                            break;
-        case 2: mPORTBSetBits(RDEC_1);                            break;
-        case 3: mPORTBSetBits(RDEC_1 | RDEC_0);                   break;
-        case 4: mPORTBSetBits(RDEC_2);                            break;
-        case 5: mPORTBSetBits( RDEC_2 | RDEC_0);                  break;
-        case 6: mPORTBSetBits( RDEC_2 | RDEC_1);                  break;
-        case 7: mPORTBSetBits( RDEC_2 | RDEC_1 | RDEC_0);         break;
-        case 8: mPORTBSetBits(RDEC_3);                            break;
-        case 9: mPORTBSetBits(RDEC_3 | RDEC_0);                   break;
-        case 10: mPORTBSetBits(RDEC_3 |RDEC_1 );                  break;
-        case 11: mPORTBSetBits(RDEC_3 | RDEC_1 | RDEC_0);         break;
-        case 12: mPORTBSetBits(RDEC_3 | RDEC_2 );                 break;
-        case 13: mPORTBSetBits(RDEC_3 | RDEC_2 | RDEC_0);         break;
-        case 14: mPORTBSetBits(RDEC_3 | RDEC_2 | RDEC_1);         break;
-        case 15: mPORTBSetBits(RDEC_3 | RDEC_2 | RDEC_1 | RDEC_0);break;
-        default:                                                  break;
-
-    }
-}
-
-// Row Refresh Interrupt Handler
-void __ISR(_TIMER_4_VECTOR, ipl6) Timer4Handler(void) {
-    uint32_t t = 1;
-    uint32_t l = 0;
-    uint32_t b = mul25lu[ApfNextRow+1]-1;
-
-    INTClearFlag(INT_T4);                               // Clear the interrupt flag
-
-    for(t=1; t < 25; t++)
-    {
-      SpiChnPutC(SPI_CHANNEL2,Apf[ApfActiveFrame][b-t]);// Send SPI Data
-    }
-
-    while(SpiChnIsBusy(SPI_CHANNEL2));                  //Wait Till SPI Done
-
-    mPORTESetBits(XLAT | BLANK);                               //Set XLAT/Blank Signal
-    rowSelector(ApfNextRow);                                    //Decoder Row Selector
-
-    if ((ApfSwitchPending == 1) && (ApfNextRow >= 15)) {       //EoR & Switch Pending
-        ApfActiveFrame = (ApfActiveFrame) ? 0 : 1;
-        ApfSwitchPending = 0;
-    }
-    
-    ApfNextRow = (ApfNextRow >= 15) ? 0: ApfNextRow+1;  //Increment to Next Row
-
-    for(l=0;l<5;l++) mPORTESetBits(XLAT | BLANK);//AntiFlicker
-    mPORTEClearBits(XLAT | BLANK);                             //Clear XLAT/Blank Signal
 
 }
-#endif
 
-/*void genGammaMap(){
+void stopTimeoutTimer(void){
+    CloseTimer2();
+}
+
+uint8_t ledTweak[256];
+void genGammaMap(){
     // Calculates gamma values
-    for (float f = 0; f < 256; f++) {
-        ledTweak[(unsigned char) f] = (unsigned char) round(
-                (f * (f / 256) + 1)
+    float f;
+    for (f = 0; f < 256; f++) {
+        ledTweak[(uint8_t) f] = (uint8_t) floor(
+                (f * (f / 256) + 1)+0.5
                 );
     }
 
     ledTweak[0] = 0;
-}*/
+}
 
-uint8_t dmaTxLedDone;
+void alterGamma(uint32_t* color) {
+    uint32_t tmp = *color;
+    *color = (ledTweak[(tmp >> 24) & 0xff] << 24) |
+             (ledTweak[(tmp >> 12) & 0xff] << 12) |
+             (ledTweak[(tmp      ) & 0xff]);
+}
 
-void sendWS2812(uint32_t* frame ){
-   dmaTxComplete = 0;
+void sendWS2812(uint32_t* frame ){;
    dmaTxOffIdx   = 1;
    dmaTxFramePtr = frame;
-   dmaTxLedDone = 0;
    //Offset
    //0,256,512,768..3840,
    //0, 1,  2,  3 ..15
-   // Configure the dma channels to chain
    DmaChnOpen(chn0,DMA_CHN_PRI0,DMA_OPEN_DEFAULT);
    //DmaChnOpen(chn1,DMA_CHN_PRI1,DMA_OPEN_CHAIN_HI);
    //UART2 rx interrupt to start transfer, stops after 1024KB has be transferered
@@ -667,10 +521,6 @@ void sendWS2812(uint32_t* frame ){
    //DmaChnSetEventControl(chn1, DMA_EV_START_IRQ_EN | DMA_EV_START_IRQ(_SPI2_TX_IRQ));
    // set the transfer source and dest addresses, source and dest sizes and the cell size
    DmaChnSetTxfer(chn0, (void*)dmaTxFramePtr,  (void*)&SPI2BUF,  256, 4, 4);
-   //DmaChnSetTxfer(chn1, (void*)dmaTxFramePtr+MUL256(1),  (void*)&SPI2BUF,  4, 4, 4);
-   //DCH1ECON |= _DCH1ECON_CFORCE_MASK;
-   //DmaChnSetTxfer(chn0, (void*)dmaTxFramePtr+MUL256(0),  (void*)&SPI2BUF,  256, 4, 4);
-   //DmaChnSetTxfer(chn1, (void*)dmaTxFramePtr+MUL256(1),  (void*)&SPI2BUF,  256, 4, 4);
    DmaChnSetEvEnableFlags(chn0, DMA_EV_BLOCK_DONE); // enable the transfer done interrupt on final chained dma
    //DmaChnSetEvEnableFlags(chn1, DMA_EV_BLOCK_DONE);
 
@@ -687,7 +537,6 @@ void sendWS2812(uint32_t* frame ){
    INTEnableInterrupts();
    // enable the chn0 to start the DMA Chain
    DmaChnEnable(chn0);
-   //SPI2BUF = 0;
    DmaChnForceTxfer(chn0);
 
 }
@@ -696,7 +545,6 @@ void sendWS2812(uint32_t* frame ){
 void __ISR(_DMA_0_VECTOR, ipl7) DMA0Handler(void) {
     
     INTClearFlag(INT_DMA0);
-    //if (dmaTxOffIdx < 15) {
    if (dmaTxOffIdx < 12) {
         DmaChnOpen(chn0,DMA_CHN_PRI0,DMA_OPEN_DEFAULT);
         //DmaChnOpen(chn0,DMA_CHN_PRI0,DMA_OPEN_DEFAULT|DMA_OPEN_DET_EN);
@@ -708,8 +556,6 @@ void __ISR(_DMA_0_VECTOR, ipl7) DMA0Handler(void) {
         //DmaChnForceTxfer(chn0);
         ++dmaTxOffIdx;
     }
-         //mPORTDSetBits(BIT_1);
-         //while(1);
 }
 
 // Ping Pong Chn1 WS2812B ISR
@@ -734,36 +580,78 @@ void __ISR(_TIMER_3_VECTOR, ipl5) Timer3Handler(void) {
     uint32_t ApfToFill = (ApfActiveFrame) ? 0 : 1;
 
     INTClearFlag(INT_T3);                               // Clear the interrupt flag
+    sendWS2812(Apf[ApfActiveFrame]);
 
     //If Pfb isn't empty and Switch not pending then convert and pop.
     if ( (PfbCount > 0) && (ApfSwitchPending == 0) )  {
         apfPack(Pfb[PfbHead], Apf[ApfToFill]);
         lastPfb = PfbHead;
+        
         pfbPop();
+        if ((PfbFull == 0) && (uartStall != 0)) uartClearStall();
         ///////////////////////////////////////
-        for (i = 0; i < 256; i++)
-            Pfb[lastPfb][i] = 0;
+        //for (i = 0; i < 256; i++)
+        //    Pfb[lastPfb][i] = 0;
         ///////////////////////////////////////
-#ifndef WS2812
-         ApfSwitchPending = 1; //Used in Scan mode to wait till Row is finished before switch
-#else
-         ApfActiveFrame = ApfToFill;
-#endif
+        ApfActiveFrame = ApfToFill;
     }
-
-#ifdef WS2812
-    sendWS2812(Apf[ApfActiveFrame]);
-#endif
 
 
 
 }
 
 // DMA3 Block Complete Interrupt Handler
-//void __ISR(_DMA_3_VECTOR, ipl7) DMA3Handler(void) {
-//    dmaTxComplete = 1;
-//    INTClearFlag(INT_DMA3);                               // Clear the interrupt flag
-//}
+void __ISR(_DMA_3_VECTOR, ipl7) DMA3Handler(void) {
+    if(dmaRxLast) { dmaRxComplete = 1;}
+    else {
+        uartSetStall(); //Stall UART while setting up next UART
+        // Configure the dma channels to chain
+        DmaChnOpen(chn2,DMA_CHN_PRI0,DMA_OPEN_DEFAULT);
+        DmaChnOpen(chn3,DMA_CHN_PRI0,DMA_OPEN_CHAIN_HI);
+        //UART2 rx interrupt to start transfer, stops after 1024KB has be transferered
+        DmaChnSetEventControl(chn2, DMA_EV_START_IRQ_EN | DMA_EV_START_IRQ(_UART2_RX_IRQ));
+        DmaChnSetEventControl(chn3, DMA_EV_START_IRQ_EN | DMA_EV_START_IRQ(_UART2_RX_IRQ));
+        // set the transfer source and dest addresses, source and dest sizes and the cell size
+        DmaChnSetTxfer(chn2, (void*)&U2RXREG, (void*)dmaRxPfb+512,     1, 256, 1);
+        DmaChnSetTxfer(chn3, (void*)&U2RXREG, (void*)dmaRxPfb+768,     1, 256, 1);
+
+        DmaChnSetEvEnableFlags(chn3, DMA_EV_BLOCK_DONE); // enable the transfer done interrupt on final chained dma
+
+        // Set up DMA Block Complete interrupt with a priority of 7 and zero sub-priority
+        INTSetVectorPriority(INT_DMA_3_VECTOR, INT_PRIORITY_LEVEL_7);
+        INTSetVectorSubPriority(INT_DMA_3_VECTOR, INT_SUB_PRIORITY_LEVEL_0);
+        INTEnable(INT_DMA3, INT_ENABLED);
+
+        // Enable multi-vector interrupts
+        INTConfigureSystem(INT_SYSTEM_CONFIG_MULT_VECTOR);
+        INTEnableInterrupts();
+        // enable the chn0 to start the DMA Chain
+        DmaChnEnable(chn2);
+        dmaRxLast = 1;
+        uartClearStall();
+    }
+    INTClearFlag(INT_DMA3);                               // Clear the interrupt flag
+}
+
+// Frame Refresh Interrupt Handler
+void __ISR(_TIMER_2_VECTOR, ipl5) Timer2Handler(void) {
+
+    stopTimeoutTimer();
+    
+    //Reset Statemachine
+    RxStateReset = 1;
+
+    //Flush Uart Buffer
+    uartFlushFifo();
+
+    //Cancel UART DMA Channels
+    DmaChnDisable(chn2);
+    DmaChnDisable(chn3);
+    DmaChnAbortTxfer(chn2);
+    DmaChnAbortTxfer(chn3);
+
+    INTClearFlag(INT_T2);                               // Clear the interrupt flag
+}
 
 
 int main(void) {
@@ -783,23 +671,16 @@ int main(void) {
     pfbFlushBuffers();
     apfFlushBuffers();
 
-    apfPack(splash_hackaday, Apf[0]); // Load Debug PFB into APF
+    apfPack(splash_union, Apf[0]); // Load Debug PFB into APF
 
     /* Setup SPI Interface to LED Matrix*/
     setupSPI();
 
-
-#ifndef WS2812
-    /* Setup Dot Correction Values of TLC5940 Driver Chips*/
-    setupDotCorr();
-    /* Setup GSCLK using TIMER2 & OC2 */
-    setupGSCLK();
-    /*Setup RowRefresh Clk TIMER4 */
-    setupRowRefresh();
-#endif
-
     /*Setup Buffer Refresh*/
     setupFrameRefresh();
+
+    /* Generate Gamma Map*/
+    genGammaMap();
     
     uartDebug("Initialization Complete",23);
 
@@ -808,24 +689,25 @@ int main(void) {
     uint16_t RxRspValue;
     uint8_t DcBuffer8[1024];
     uint64_t* DcBuffer64;
-    uint32_t tmpPix;
     uint16_t i,j;
 
     while(1) {
-        tmpPix = 0;
         i = 0;
 
         switch (RxState) {
             case CMD_SM:
+                stopTimeoutTimer();
                 if (UART_DATA_AVAIL) {
-                    while (PfbFull); // Wait till there is space in PFB
+                    //while (PfbFull); // Wait till there is space in PFB
                     RxState = DECODE_CMD_SM;
                 }
                 break;
 
             case DECODE_CMD_SM:
+                startTimeoutTimer(); //40ms to complete before timeout
                 if (uartGetByte() == 'C') {
-                    while(!UART_DATA_AVAIL);
+                    while((UART_DATA_AVAIL == 0) && (RxStateReset == 0) );
+                    if (RxStateReset) break; //If dmaTimeout Exit State
                     switch((RxCmd_t)uartGetByte()) {
                         case PING_CMD:
                             uartDebug("Rx Ping Command",15);
@@ -895,11 +777,15 @@ int main(void) {
                     dmaStreamSetup( Pfb[PfbNextFree] );
                     uartDebug("Dma Stream Setup",16);
 
-                    while(dmaTxComplete == 0){};
+                    while( (dmaRxComplete == 0) && (RxStateReset == 0)){};
+                    if (RxStateReset) break; //If dmaTimeout Exit State
+
                     uartDebug("Dma Stream Complete",19);
 
                     pfbPush();
-                    uartSendRsp(ACK_RSP,0x0001);
+                    if (PfbFull) uartSetStall();
+
+                    //uartSendRsp(ACK_RSP,0x0001);
                     RxState = CMD_SM;
                     uartDebug("End Stream",10);
                     break;
@@ -908,6 +794,9 @@ int main(void) {
                     RxState = CMD_SM; //Reset SM
                     break;
             }
+            //end state loop
+        if (RxStateReset) { RxState = CMD_SM; RxStateReset = 0; uartDebug("Statemachine Reset!",19);}
+
     }
     return (EXIT_SUCCESS);
 }
