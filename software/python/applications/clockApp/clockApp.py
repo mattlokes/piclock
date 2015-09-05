@@ -8,13 +8,16 @@
 #
 #=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
 
+import signal
+import sys
+from zmq.eventloop import ioloop
+from framework.components.application import *
+from libraries.frameLib import *
+from libraries.systemLib import *
+
 import datetime
 import copy
 
-from framework.components.application import *
-
-from libraries.frameLib import *
-from libraries.systemLib import *
 
 class clockApp():
    
@@ -23,16 +26,14 @@ class clockApp():
  
    ID = "CLOCK"
    appPollTime = 0.1    #10Hz
-   rxPollTime = 0.02 #50Hz  
    
    forceUpdate = False
 
    clockMode = "WORD"
    todMode = 0
    
-   frame = []
-   timeColour = [0x00,0xFF,0x00]  #Default Colour
-   #timeColour = [0x12,0xD7,0xFF]  #Default Colour
+   frame = bytearray(1024)
+   timeColour = bytearray([0x00,0x00,0xFF,0x00])  #Default Colour
    timeHistory=""
 
    def __init__(self, parent, **kwargs):
@@ -46,9 +47,10 @@ class clockApp():
       # Decode Incoming Cmd Packets
       # Colour Change Command
       if cmd['typ'] == "COLOR":
-         self.timeColour = [int(cmd['dat'][4:6],16), #R
-                            int(cmd['dat'][2:4],16), #G
-                            int(cmd['dat'][0:2],16)] #B
+         self.timeColour = bytearray([0x00,
+                                     int(cmd['dat'][4:6],16),  #R
+                                     int(cmd['dat'][2:4],16),  #G
+                                     int(cmd['dat'][0:2],16)]) #B
          self.forceUpdate = True
       
       # Time Format Change
@@ -71,19 +73,11 @@ class clockApp():
       timeHistoryCompare=str(get_h)+str(get_m)
 
       if self.timeHistory != timeHistoryCompare or self.forceUpdate:
-         tmpFrame = []
-         frameLib.CreateBlankFrame(tmpFrame)
-         self.CreateTimeFrame( tmpFrame, get_h, get_m, self.clockMode, self.timeColour )
-         self.frame = copy.deepcopy(tmpFrame)
-         self.framePush(self.frame)
+         self.frame = bytearray(1024) 
+         self.CreateTimeFrame(self.frame, get_h, get_m, self.clockMode, self.timeColour )
+         self.parent.framePush("DISP",self.frame)
          self.timeHistory=timeHistoryCompare
          self.forceUpdate = False
-   
-   def framePush(self, frame):
-      self.parent.txQueue.put({'dst': "DISP",
-                               'src': self.ID,
-                               'typ': "FRAME",
-                               'dat': frame})
    
    def CreateTimeFrame(self, frame, hour, mins, mode, colour ):
       if mode == "WORD":
@@ -175,3 +169,22 @@ class clockApp():
          else: tod = 1
          for word in self.TOD_WORDS[tod]:
             frameLib.DrawFrameHLine(frame, word['x'], word['y'], word['len'], colour)
+
+if __name__ == "__main__":
+    cmdQRx = "ipc:///tmp/cmdQRx"
+    cmdQTx = "ipc:///tmp/cmdQTx"
+    frameQ = "ipc:///tmp/frameQ"
+     
+    if len(sys.argv) < 4 and len(sys.argv) > 1:
+       print "Argument Error Expected 3 arguments, However got {0}".format(len(sys.argv))
+    elif len(sys.argv) > 1:
+       cmdQRx = sys.argv[1]
+       cmdQTx = sys.argv[2]
+       frameQ = sys.argv[3]
+
+    ioloop.install()
+    app = application( clockApp , "ipc:///tmp/cmdQRx", "ipc:///tmp/cmdQTx" , "ipc:///tmp/frameQ")
+    signal.signal(signal.SIGINT, app.extkill)
+    app.startup()
+    app.resume()
+    ioloop.IOLoop.instance().start()

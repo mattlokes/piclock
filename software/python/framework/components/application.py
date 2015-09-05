@@ -7,33 +7,31 @@
 #
 #=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
 
-import Queue
-import threading
+import zmq
+from zmq.eventloop import ioloop, zmqstream
 
 from libraries.systemLib import *
 
-class application(threading.Thread):
+
+class application():
    
    ID = "DEFAULT"
 
    appPollTime = 0.02    #50Hz
-   rxPollTime = 0.02     #50Hz  
    
    state = "NONE"
 
-   dying = False
-   pauseApp = False
    debugSys = False
-
+   
    # cmdPacket:   { 'dst': <packetDst>, 'src':<packetSrc> 'typ': <cmdType>, 'dat': <cmdData> }
   
    # txQueue = TX Cmd Queue , (Always Push)
    # rxQueue = Rx Cmd Queue , (Always Pop)
   
-   def __init__(self, appClass, txQueue, rxQueue, **kwargs):
-      threading.Thread.__init__(self) #MagicT
-      self.txQueue = txQueue
-      self.rxQueue = rxQueue
+   def __init__(self, appClass, cmdQueueRx, cmdQueueTx, frameQueue, **kwargs):
+      self.cmdQueueRxPath = cmdQueueRx
+      self.cmdQueueTxPath = cmdQueueTx
+      self.frameQueuePath = frameQueue
 
       if isinstance(kwargs, dict):
          self.app = appClass(self, **kwargs)
@@ -43,59 +41,90 @@ class application(threading.Thread):
          self.app = appClass(parent=self)
       
       if hasattr(self.app, 'appPollTime'): self.appPollTime = self.app.appPollTime
-      if hasattr(self.app, 'rxPollTime'): self.rxPollTime = self.app.rxPollTime
 
       self.sys = sysPrint(self.app.ID, self.debugSys)
-      self.start()
+      self.context = zmq.Context()
+    
+      self.frameQueue = self.context.socket(zmq.PUB)
+      self.frameQueue.bind(self.frameQueuePath)
+      
+      self.cmdQueueTx = self.context.socket(zmq.PUB)
+      self.cmdQueueTx.bind(self.cmdQueueTxPath)
+      
+      self.cmdQueueRx = self.context.socket(zmq.SUB)
+      self.cmdQueueRx.connect(self.cmdQueueRxPath)
+      self.cmdQueueRx.setsockopt(zmq.SUBSCRIBE, self.app.ID)
+      
+      self.cmdStreamRx = zmqstream.ZMQStream(self.cmdQueueRx)
+      self.cmdStreamRx.on_recv(self.__rxPoll)
+      
+      self.appTicker = ioloop.PeriodicCallback(self.__appPoll, (self.appPollTime * 1000))
+      
       self.state = "INIT"
       self.sys.info("Initializing Application...")
 
+   def extkill(self,signal,frame):
+      self.kill()
+   
    def startup(self):
-     
       self.app.startup()
-      
-      if self.rxQueue != None: threading.Timer(self.rxPollTime, self.__rxPoll).start() #rx Poller
-      #if hasattr(self.app, 'appPollTime'): self.appPollTime = self.app.appPollTime
-      #threading.Timer(self.appPollTime, self.__appPoll).start() #App Poller
       self.state = "PAUSED"
       self.sys.info("Starting Application...")
 
 
    def kill(self):
-      self.dying = True
-      self.rxQueue.put({'dst': self.app.ID, 'src': self.app.ID, 'typ': "KILL", 'dat':0}) #Unlock rx wait
+      self.appTicker.stop()
       self.state = "DEAD"
       self.sys.info("Stopping Application...")
+      ioloop.IOLoop.instance().stop() 
 
    def pause(self):
-      self.pauseApp = True
       self.state = "PAUSED"
+      self.appTicker.stop()
 
    def resume(self):
-      self.pauseApp = False
       self.app.forceUpdate = True
-      if hasattr(self.app, 'appPollTime'): self.appPollTime = self.app.appPollTime
+      # appPollTime has changed so update appTicker
+      if hasattr(self.app, 'appPollTime'):
+          if self.appPollTime != self.app.appPollTime:
+              self.appPollTime = self.app.appPollTime
+              self.appTicker.callback_time = self.appPollTime * 1000
       self.state = "RUNNING"
-      threading.Timer(self.appPollTime, self.__appPoll).start() #App Poller
+      self.appTicker.start()
 
-   def __rxPoll(self):
-      if not self.dying:
-         cmd = self.rxQueue.get()
-         self.sys.rxDebug(cmd)
+   def sendStat(self, dst):
+      stat = "|{0}|{1}|".format(self.state, float(1/self.appPollTime) )
+      self.cmdQueueTx.send("{0}#{1}#STATUS#{2}#{3}".format(dst,self.app.ID,
+                                                           len(stat), stat))
+   def changeAppTick(self, tick):
+      self.pause()
+      if hasattr(self.app, 'appPollTime'):
+         self.app.appPollTime = float(tick)
+      else:
+         self.appPollTime = float(tick)
+      self.resume()
 
-         self.app.incomingRx(cmd)
+   def framePush(self, dst, frame):
+      self.frameQueue.send("{0}#{1}#FRAME#{2}#{3}".format(dst,self.app.ID, 
+                                                          len(frame) ,str(frame)))
+
+   def __rxPoll(self, msg):
+      # Format: DST#SRC#TYP#DATLEN#DAT
+      print msg
+      msgSplit = msg[0].split('#')
+      cmd = {'dst': msgSplit[0], 'src': msgSplit[1], 
+             'typ': msgSplit[2], 'len': msgSplit[3], 'dat': msgSplit[4]} 
+      self.sys.rxDebug(cmd)
          
-         if not self.dying: threading.Timer(self.rxPollTime, self.__rxPoll).start() #rxQueue Poller
+      if   cmd['typ'] == "PAUSE":   self.pause()
+      elif cmd['typ'] == "KILL" :   self.kill()
+      elif cmd['typ'] == "RESUME":  self.resume()
+      elif cmd['typ'] == "STATUS":  self.sendStat(cmd['src'])
+      elif cmd['typ'] == "APPTICK": self.changeAppTick(cmd['dat'])
+      else:                         self.app.incomingRx(cmd)
+         
 
    # Main Application Loop
    def __appPoll(self):
-      if not self.dying and not self.pauseApp:
-        
-          msgs = self.app.appTick()
-          if msgs != None:
-             for msg in msgs:
-                self.txQueue.put(msg)
-         
-          if not self.dying and not self.pauseApp:
-             if hasattr(self.app, 'appPollTime'): self.appPollTime = self.app.appPollTime
-             threading.Timer(self.appPollTime, self.__appPoll).start() #App Poller
+      #print "App Poll....."
+      self.app.appTick()
