@@ -1,5 +1,12 @@
 import zmq
 import sys
+import signal
+
+def sigint_hand(signal,frame):
+   sys.exit(0)
+
+signal.signal( signal.SIGINT, sigint_hand)
+
 context = zmq.Context()
 print "Listening on {0} .....".format(sys.argv[1])
 #

@@ -6,27 +6,30 @@
 #               Description:   Snake Game! 
 #
 #=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
-import random
 
+import signal
+import sys
+from zmq.eventloop import ioloop
 from framework.components.application import *
 
 from libraries.frameLib import *
 from libraries.systemLib import *
+
+import random
 
 class snakeApp():
    
  
    ID = "SNAKE"
    appPollTime = 0.1    #10Hz
-   rxPollTime = 0.02 #50Hz  
    
    forceUpdate = False
 
    snakeMode = "Normal"
    
-   frame = []
-   snakeColour = [0x00,0xFF,0x00]  #Green
-   fruitColour = [0x00,0x00,0xFF]  #Red
+   frame = bytearray(1024)
+   snakeColour = bytearray([0x00,0xFF,0x00,0x00])  #Green
+   fruitColour = bytearray([0x00,0x00,0xFF,0x00])  #Red
    
    score = 0
 
@@ -88,7 +91,7 @@ class snakeApp():
          else:
             #Remove Tail
             tail = self.snakeBody.pop(0)
-            frameLib.DrawFramePixel(self.frame, tail[0], tail[1], [0x00,0x00,0x00])
+            frameLib.DrawFramePixel(self.frame, tail[0], tail[1], bytearray([0x00,0x00,0x00,0x00]))
 
          #Draw New Snake Head
          self.snakeBody.append(tmpHead)
@@ -97,10 +100,10 @@ class snakeApp():
       else:
          self.snakeClear()
 
-      self.framePush(self.frame)
+      self.parent.framePush("DISP",self.frame)
          
    def snakeClear(self):
-      frameLib.CreateBlankFrame(self.frame)
+      self.frame = bytearray(1024)
       self.score = 0
       self.snakeBody   = [[0,1],[1,1]]
       self.snakeHead   = [1,1]
@@ -122,9 +125,22 @@ class snakeApp():
         validFruit = potPlace != self.snakeColour and potPlace != self.fruitColour
      return tmpFruit
 
-   def framePush(self, frame):
-      self.parent.txQueue.put({'dst': "DISP",
-                               'src': self.ID,
-                               'typ': "FRAME",
-                               'dat': frame})
-   
+if __name__ == "__main__":
+    cmdQRx = "ipc:///tmp/cmdQRx"
+    cmdQTx = "ipc:///tmp/cmdQTx"
+    frameQ = "ipc:///tmp/frameQ"
+     
+    if len(sys.argv) < 4 and len(sys.argv) > 1:
+       print "Argument Error Expected 3 arguments, However got {0}".format(len(sys.argv))
+    elif len(sys.argv) > 1:
+       cmdQRx = sys.argv[1]
+       cmdQTx = sys.argv[2]
+       frameQ = sys.argv[3]
+
+    ioloop.install()
+    app = application( snakeApp , "ipc:///tmp/cmdQRx", "ipc:///tmp/cmdQTx" , "ipc:///tmp/frameQ")
+    signal.signal(signal.SIGINT, app.extkill)
+    app.startup()
+    app.resume()
+    ioloop.IOLoop.instance().start()
+

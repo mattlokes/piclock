@@ -55,7 +55,6 @@ class termInterface():
       ioloop.IOLoop.instance().stop()
 
    def __framePoll( self , msg ):
-      print msg
       msgSplit = msg[0].split('#')
       cmd = {'dst': msgSplit[0], 'src': msgSplit[1], 
              'typ': msgSplit[2], 'len': msgSplit[3], 'dat': msgSplit[4]} 
