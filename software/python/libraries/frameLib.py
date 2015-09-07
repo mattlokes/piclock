@@ -79,6 +79,37 @@ class frameLib ():
          else:
             pass #Silently Ignore
 
+   @staticmethod
+   def ShiftFrameLeft (frame ,shiftnum):
+      for i in range(0,shiftnum):
+         for i in range(0,4):frame.pop(0)       #Remove 4 Bytes
+         for i in range(0,4):frame.append(0x00) #Add 4 Bytes
+         for r in range(0,16):
+            p = ((4*16*r)+(4*15))
+            frame[p:p+4] = bytearray([0x00,0x00,0x00,0x00]) 
+   
+   @staticmethod
+   def ShiftFrameRight (frame ,shiftnum):
+      for i in range(0,shiftnum):
+         frame.insert(0,[0x00,0x00,0x00])
+         frame.pop(256)
+         for r in range(0,16):
+            frame[(16*r)] = [0x00,0x00,0x00]
+   
+   @staticmethod
+   def ShiftFrameUp (frame ,shiftnum):
+      for i in range(0,shiftnum):
+         for r in range(0,16): 
+            frame.pop(0)
+            frame.append([0x00,0x00,0x00])
+   
+   @staticmethod
+   def ShiftFrameDown (frame ,shiftnum):
+      for i in range(0,shiftnum):
+         for r in range(0,16): 
+            frame.insert(0,[0x00,0x00,0x00])
+            frame.pop(256)
+
    @staticmethod 
    def CreateEqualizerFrame( frame , aChans) :
       if len(aChans) != 16:
