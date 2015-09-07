@@ -46,10 +46,10 @@ class application():
       self.context = zmq.Context()
     
       self.frameQueue = self.context.socket(zmq.PUB)
-      self.frameQueue.bind(self.frameQueuePath)
+      self.frameQueue.connect(self.frameQueuePath)
       
       self.cmdQueueTx = self.context.socket(zmq.PUB)
-      self.cmdQueueTx.bind(self.cmdQueueTxPath)
+      self.cmdQueueTx.connect(self.cmdQueueTxPath)
       
       self.cmdQueueRx = self.context.socket(zmq.SUB)
       self.cmdQueueRx.connect(self.cmdQueueRxPath)
@@ -59,6 +59,7 @@ class application():
       self.cmdStreamRx.on_recv(self.__rxPoll)
       
       self.appTicker = ioloop.PeriodicCallback(self.__appPoll, (self.appPollTime * 1000))
+      self.appTicker.stop()
       
       self.state = "INIT"
       self.sys.info("Initializing Application...")
@@ -110,7 +111,7 @@ class application():
 
    def __rxPoll(self, msg):
       # Format: DST#SRC#TYP#DATLEN#DAT
-      print msg
+      print msg[0]
       msgSplit = msg[0].split('#')
       cmd = {'dst': msgSplit[0], 'src': msgSplit[1], 
              'typ': msgSplit[2], 'len': msgSplit[3], 'dat': msgSplit[4]} 
@@ -121,6 +122,7 @@ class application():
       elif cmd['typ'] == "RESUME":  self.resume()
       elif cmd['typ'] == "STATUS":  self.sendStat(cmd['src'])
       elif cmd['typ'] == "APPTICK": self.changeAppTick(cmd['dat'])
+      elif cmd['typ'] == "REFRESH": self.app.forceUpdate = True
       else:                         self.app.incomingRx(cmd)
          
 

@@ -61,7 +61,7 @@ class wsInterface( threading.Thread ):
       self.context = zmq.Context()     
       
       self.cmdQueueTx = self.context.socket(zmq.PUB)
-      self.cmdQueueTx.bind(self.cmdQueueTxPath)
+      self.cmdQueueTx.connect(self.cmdQueueTxPath)
       
       self.cmdQueueRx = self.context.socket(zmq.SUB)
       self.cmdQueueRx.connect(self.cmdQueueRxPath)
@@ -98,8 +98,8 @@ class wsInterface( threading.Thread ):
       self.sys.info("Stopping Application...")
 
 if __name__ == "__main__":
-    cmdQRx = "ipc:///tmp/cmdQRx"
-    cmdQTx = "ipc:///tmp/cmdQTx"
+    wsQRx = "ipc:///tmp/cmdQRx"
+    wsQTx = "ipc:///tmp/cmdQTx"
      
     if len(sys.argv) < 3 and len(sys.argv) > 1:
        print "Argument Error Expected 2 arguments, However got {0}".format(len(sys.argv))
@@ -108,7 +108,7 @@ if __name__ == "__main__":
        cmdQTx = sys.argv[2]
 
     #ioloop.install()
-    app = wsInterface( "ipc:///tmp/cmdQTx", "ipc:///tmp/cmdQRx" , debugSys=False)
+    app = wsInterface( "ipc:///tmp/cmdQRx", "ipc:///tmp/cmdQTx" , debugSys=False)
     signal.signal(signal.SIGINT, app.extkill)
     app.startup()
     #ioloop.IOLoop.instance().start()

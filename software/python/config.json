@@ -1,25 +1,69 @@
 {
-   'description' : "Matt's Wordclock",
-   'author'      : "Matt",
-   'version'     : "0.1",
-   'platform'    : "ubuntuvm"
-   'date'        : "01/09/2015",
-   
-   'modules'     : {
-                      'interfaces'  : [
-                                      //{ 'name': "Hardware Display",  'id': "DISP ", 'path': "interfaces/hwInterface",     'type': "bin",    'enabled': True, 'args': []},
-                                      { 'name': "Terminal Display",  'id': "DISP",    'path': "interfaces/termInterface",   'type': "python", 'enabled': True, 'args': []},
-                                      { 'name': "Websocket Server",  'id': "WEBSOCK", 'path': "interfaces/wsInterface.py",  'type': "python", 'enabled': True, 'args': []},
-                                      { 'name': "Web Server",        'id': "WEBSERV", 'path': "interfaces/webServer.py",    'type': "python", 'enabled': True, 'args': []}
-                                      ],
-
-                      'applications': [
-                                      { 'name': "Clock Application",        'id': "CLOCK",  'path': "applications/clockApp",      'type': "python", 'enabled': True, 'args': []},
-                                      { 'name': "Pattern Test Application", 'id': "COLOUR", 'path': "applications/colourTestApp", 'type': "python", 'enabled': True, 'args': []},
-                                      { 'name': "Snake Application",        'id': "SNAKE",  'path': "applications/snakeApp",      'type': "python", 'enabled': True, 'args': []}
-                                      ],
-
-                      'notifiers'   : [
-                                      ]
-                   }
+    "description": "Matt's Wordclock",
+    "author": "Matt",
+    "version": "0.1",
+    "date": "01/09/2015",
+    "modules": {
+        "interfaces": [
+            {
+                "name": "Hardware Display",
+                "id": "HWDISP ",
+                "path": "interfaces/hwinterface",
+                "type": "bin",
+                "enabled": 0,
+                "args": []
+            },
+            {
+                "name": "Simulated Display",
+                "id": "SIMDISP",
+                "path": "interfaces/hwinterface",
+                "type": "python",
+                "enabled": 1,
+                "args": []
+            },
+            {
+                "name": "Websocket Server",
+                "id": "WEBSOCK",
+                "path": "interfaces/wsInterface.py",
+                "type": "python",
+                "enabled": 1,
+                "args": []
+            },
+            {
+                "name": "Web Server",
+                "id": "WEBSERV",
+                "path": "interfaces/webServer.py",
+                "type": "python",
+                "enabled": 1,
+                "args": []
+            }
+        ],
+        "applications": [
+            {
+                "name": "Clock Application",
+                "id": "CLOCK  ",
+                "path": "applications/clockApp",
+                "type": "python",
+                "enabled": 1,
+                "args": []
+            },
+            {
+                "name": "Pattern Test Application",
+                "id": "COLOUR ",
+                "path": "applications/colourTestApp",
+                "type": "python",
+                "enabled": 1,
+                "args": []
+            },
+            {
+                "name": "Snake Application",
+                "id": "SNAKE  ",
+                "path": "applications/snakeApp",
+                "type": "python",
+                "enabled": 1,
+                "args": []
+            }
+        ],
+        "notifiers": []
+    }
 }

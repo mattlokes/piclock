@@ -11,7 +11,7 @@
 import signal
 import sys
 from zmq.eventloop import ioloop
-from framework.components.application import *
+from libraries.application import *
 from libraries.frameLib import *
 from libraries.systemLib import *
 
@@ -183,8 +183,7 @@ if __name__ == "__main__":
        frameQ = sys.argv[3]
 
     ioloop.install()
-    app = application( clockApp , "ipc:///tmp/cmdQRx", "ipc:///tmp/cmdQTx" , "ipc:///tmp/frameQ")
+    app = application( clockApp , cmdQRx, cmdQTx , frameQ)
     signal.signal(signal.SIGINT, app.extkill)
     app.startup()
-    app.resume()
     ioloop.IOLoop.instance().start()

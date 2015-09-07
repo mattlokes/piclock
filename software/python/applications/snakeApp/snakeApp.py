@@ -10,7 +10,7 @@
 import signal
 import sys
 from zmq.eventloop import ioloop
-from framework.components.application import *
+from libraries.application import *
 
 from libraries.frameLib import *
 from libraries.systemLib import *
@@ -141,6 +141,5 @@ if __name__ == "__main__":
     app = application( snakeApp , "ipc:///tmp/cmdQRx", "ipc:///tmp/cmdQTx" , "ipc:///tmp/frameQ")
     signal.signal(signal.SIGINT, app.extkill)
     app.startup()
-    app.resume()
     ioloop.IOLoop.instance().start()
 
