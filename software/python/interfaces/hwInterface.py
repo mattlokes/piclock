@@ -1,178 +1,92 @@
 import serial
-import array
-import time
-import threading
-from threading import Thread
-from threading import Event
 import signal
+import zmq
+from zmq.eventloop import ioloop, zmqstream
+import sys
+import os
 
 ##########################################################
 
-import os
 from libraries.frameLib import *
 from libraries.systemLib import *
 
-class hwInterface( threading.Thread ):
+class hwInterface():
 
-   #CMD TYPES 0x43
-   PING_CMD 	 =  [0x43,0x00]
-   START_DRAW	 =  [0x43,0x01]
-   START_STREAM	 =  [0x43,0x02]
-   FLUSH_BUFFERS =  [0x43,0x04]
-   GET_LIGHT	 =  [0x43,0x08]
-   GET_TEMP	 =  [0x43,0x10]
-   
    ID="DISP"
-   dying = False
-   debugEn = False
-   
-   serialPollTime = 0.005
-   rxPollTime = 0.01
+   debugSys = False
 
-   srtThreadAlive = False
-   srtBuffer =[]
-   srtFlagAck=0
-   srtThreadEvent = Event()
- 
-   frameCount=0
-   
-   # cmdPacket:   { 'dst': 'CLOCK',     'src':<packetSrc> 'typ': <cmdType>, 'dat': <cmdData> }
-
+   ser = serial.Serial( '/dev/ttyAMA0', 460800)
    # txQueue = TX Cmd Queue , (Always Push)
    # rxQueue = Rx Cmd Queue , (Always Pop)
 
-   def __init__( self, txQueue, rxQueue, **kwargs ):
-      threading.Thread.__init__( self ) #MagicT
-      self.sys = sysPrint(self.ID, kwargs['debugSys'])
-      self.txQueue = txQueue
-      self.rxQueue = rxQueue
-      self.fastRx = kwargs['fastRx']
-      self.fakeSerial = kwargs['fakeSerial']
-      self.debugSys = kwargs['debugSys']
-      if not self.fakeSerial:
-         self.ser = serial.Serial( '/dev/ttyAMA0', 460800)
-      #When using debugging turn fastRx off as it turns on the serial parsing threads
-      if not self.fastRx:
-         self.srt = Thread(target = self.__serialRecieverThread, args = (self.srtThreadEvent, "SRT", ))
-         self.srdpt = Thread(target = self.__serialRecieverDataParseThread, args = (self.srtThreadEvent, "SRDPT", ))
-      self.start()
+   def __init__( self, cmdQueueRx, cmdQueueTx, frameQueue, **kwargs ):
+      self.cmdQueueRxPath = cmdQueueRx
+      self.cmdQueueTxPath = cmdQueueTx
+      self.frameQueuePath = frameQueue
+   
+      self.sys = sysPrint(self.ID, self.debugSys)      
+      
+      self.context = zmq.Context()     
+      self.frameQueue = self.context.socket(zmq.SUB)
+      self.frameQueue.connect(self.frameQueuePath)
+      self.frameQueue.setsockopt(zmq.SUBSCRIBE, '')
+
+      self.frameStream = zmqstream.ZMQStream(self.frameQueue)
+      self.frameStream.on_recv(self.__framePoll)
+      
+      self.cmdQueueRx = self.context.socket(zmq.SUB)
+      self.cmdQueueRx.connect(self.cmdQueueRxPath)
+      self.cmdQueueRx.setsockopt(zmq.SUBSCRIBE, self.ID)
+
+      self.cmdRxStream = zmqstream.ZMQStream(self.cmdQueueRx)
+      self.cmdRxStream.on_recv(self.__rxPoll)
+
       self.sys.info("Initializing Application...")
 
    def startup( self ):
-      self.frameCount=0
-      if not self.fastRx:
-         self.sys.info("fastRx disabled, serial parsing threads starting")
-         self.srtThreadAlive = True
-         self.srt.start()
-         self.srdpt.start()
-      threading.Timer(self.rxPollTime, self.__rxPoll).start() #rxQueue Poller
       self.sys.info("Starting Application...")
+   
+   def extkill(self,signal,frame):
+      self.kill()
 
 
    def kill( self ):
-      self.dying = True
-      self.rxQueue.put({'dst': "DISP", 'src': "DISP", 'typ': "KILL", 'dat':0})
-      if not self.fastRx:
-         self.srtThreadEvent.set()
-         self.srtThreadAlive = 0
-      if not self.fakeSerial:
-         self.ser.close()
-      time.sleep(0.1)
+      self.ser.close()
       self.sys.info("Stopping Application...")
+      ioloop.IOLoop.instance().stop()
 
-   def __rxPoll( self ):
-      cmd = self.rxQueue.get()
-      self.sys.rxDebug(cmd)
-
-      #Decode Packets
-      #Frame Data, Send to Display
+   def __framePoll( self , msg ):
+      msgSplit = msg[0].split('#')
+      cmd = {'dst': msgSplit[0], 'src': msgSplit[1], 
+             'typ': msgSplit[2], 'len': msgSplit[3], 'dat': msgSplit[4]} 
+         
       if cmd['typ'] == "FRAME":
-         self.__serialSendBytes(self.START_STREAM) # Send Stream REQ
-         self.__serialWaitAck()   # Wait for ACK        
+         frame = bytearray(cmd['dat'])
+         if len(frame) == 1024: self.ser.write(frame)
+         else:                  print "Frame not 1024 Bytes!!"
 
-         #os.system('clear')
-         #print "Frame #{0}".format(str(self.frameCount))
+   def __rxPoll( self , msg ):
+      print msg
+      msgSplit = msg[0].split('#')
+      cmd = {'dst': msgSplit[0], 'src': msgSplit[1], 
+             'typ': msgSplit[2], 'len': msgSplit[3], 'dat': msgSplit[4]} 
          
-         self.__serialSendFrame(cmd['dat']) #Send Frame
-         self.__serialWaitAck() # Wait for ACK          
-         
-         self.frameCount+=1
+      if cmd['typ'] == "KILL" :   self.kill()
 
-      #Kill Command, Stop Module
-      if cmd['typ'] == "KILL":
-         pass 
+if __name__ == "__main__":
+    cmdQRx = "ipc:///tmp/cmdQRx"
+    cmdQTx = "ipc:///tmp/cmdQTx"
+    frameQ = "ipc:///tmp/frameQ"
+     
+    if len(sys.argv) < 4 and len(sys.argv) > 1:
+       print "Argument Error Expected 3 arguments, However got {0}".format(len(sys.argv))
+    elif len(sys.argv) > 1:
+       cmdQRx = sys.argv[1]
+       cmdQTx = sys.argv[2]
+       frameQ = sys.argv[3]
 
-      if not self.dying: threading.Timer(self.rxPollTime, self.__rxPoll).start() #rxQueue Poller
-   
-   def __serialSendBytes( self, b ):
-      if self.fakeSerial:
-         pass
-      else:
-         for i in b:
-            self.ser.write(chr(i))
-   
-   def __serialSendFrame( self, frame ):
-      if self.fakeSerial:
-         os.system('clear')
-         #frameLib.debugFramePrint(frame)
-         frameLib.debugFrameLetterPrint(frame)
-      else:
-         outBuff = []
-         for i in range(0,256):
-            outBuff += [frame[i][0], frame[i][1] & 0xF0, frame[i][1] & 0x0F, frame[i][2]]
-         self.ser.write(bytearray(outBuff))
-
-   def __serialWaitAck ( self ):
-      if self.fakeSerial:
-         pass
-      else:
-         if not self.fastRx:
-            self.srtThreadEvent.set()
-            while(self.srtFlagAck == 0): time.sleep(self.serialPollTime)
-            self.srtFlagAck=0
-            self.srtThreadEvent.clear()
-         else:
-            self.ser.read(size=4)
-   
-   def __serialRecieverThread( self, e, name ):
-      while (self.srtThreadAlive):
-         e.wait()
-         time.sleep(self.serialPollTime)
-         if self.srtThreadAlive:
-            while (self.ser.inWaiting() != 0):
-               self.srtBuffer.append(self.ser.read())
-   
-   #Serial Recieving Parse Thread used when PIC32 Debug Build is connected.
-   #Split Data from Debug Information and print debug Information.
-   def __serialRecieverDataParseThread ( self, e, name ):
-      while (self.srtThreadAlive):
-         e.wait()
-         time.sleep(self.serialPollTime)
-         while len(self.srtBuffer) > 0:
-            tmpStr = ""
-            #Response Message Parse
-            if self.srtBuffer[0] == 'R':
-               while len(self.srtBuffer) < 4: pass
-               if self.srtBuffer[1] == "\x01":
-                  self.srtFlagAck=1
-               for i in range(0,4):
-                  if ord(self.srtBuffer[0]) > 31:
-                     tmpStr+= self.srtBuffer.pop(0) #Letter
-                  else:
-                     tmpStr+= str(ord(self.srtBuffer.pop(0))) #Num
-            #Debug Message Parse
-            elif self.srtBuffer[0] == 'D':
-               debug_rx=True
-               while debug_rx:
-                  if len(self.srtBuffer) > 0: 
-                     if self.srtBuffer[0] != '\n':
-                         tmpStr+= self.srtBuffer.pop(0)
-                     else:
-                        self.srtBuffer.pop(0)
-                        debug_rx=False
-            #None Standard Type Packet
-            else:
-               tmpStr="SRT-PARSER: PARSE ERROR"
-               self.srtBuffer.pop(0)
-               self.sys.debug(self.srtBuffer)
-            if self.debugEn:  self.sys.debug(tmpStr)
+    ioloop.install()
+    app = hwInterface( "ipc:///tmp/cmdQRx", "ipc:///tmp/cmdQTx" , "ipc:///tmp/frameQo")
+    signal.signal(signal.SIGINT, app.extkill)
+    app.startup()
+    ioloop.IOLoop.instance().start()

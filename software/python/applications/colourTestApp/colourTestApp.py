@@ -18,7 +18,7 @@ from libraries.systemLib import *
 class colourTestApp():
    
    ID = "COLOUR"
-   appPollTime = 0.02    #10Hz
+   appPollTime = 0.1    #10Hz
    
    forceUpdate = False
 
