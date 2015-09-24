@@ -350,10 +350,10 @@ typedef struct {
 } Color_t;
 
 typedef struct {
-        unsigned char g;
-	unsigned char r;
-	unsigned char a;
+        unsigned char r;
+	unsigned char g;
 	unsigned char b;
+	unsigned char a;
 } aColor_t;
 
 unsigned int numLEDs;		// How many LEDs there are on the chain

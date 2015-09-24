@@ -40,9 +40,9 @@ class colourTestApp():
       # Colour Change Command
       if cmd['typ'] == "COLOR":
          self.frameColour = bytearray( [0x00,
-                                       int(cmd['dat'][4:6],16),  #R
+                                       int(cmd['dat'][0:2],16),  #R
                                        int(cmd['dat'][2:4],16),  #G
-                                       int(cmd['dat'][0:2],16)]) #B 
+                                       int(cmd['dat'][4:6],16)]) #B 
          self.forceUpdate = True
          
       # Time Format Change

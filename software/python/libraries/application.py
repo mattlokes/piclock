@@ -22,6 +22,7 @@ class application():
    state = "NONE"
 
    debugSys = False
+   defApp = False
    
    # cmdPacket:   { 'dst': <packetDst>, 'src':<packetSrc> 'typ': <cmdType>, 'dat': <cmdData> }
   
@@ -37,6 +38,8 @@ class application():
          self.app = appClass(self, **kwargs)
          if "debugSys" in kwargs.keys():
             self.debugSys = kwargs['debugSys']
+         if "default" in kwargs.keys():
+            self.defApp = kwargs['default']
       else:
          self.app = appClass(parent=self)
       
@@ -71,6 +74,7 @@ class application():
       self.app.startup()
       self.state = "PAUSED"
       self.sys.info("Starting Application...")
+      if self.defApp: self.resume()
 
 
    def kill(self):

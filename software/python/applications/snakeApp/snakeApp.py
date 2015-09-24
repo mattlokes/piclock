@@ -29,8 +29,8 @@ class snakeApp():
    
    frame = bytearray(1024)
    #BGRA
-   snakeColour = bytearray([0x00,0xFF,0x00,0x00])  #Green
-   fruitColour = bytearray([0x00,0x00,0xFF,0x00])  #Red
+   snakeColour = bytearray([0x00,0x00,0xFF,0x00])  #Green
+   fruitColour = bytearray([0x00,0xFF,0x00,0x00])  #Red
    
    score = 0
 
