@@ -118,8 +118,9 @@
 
 #include <signal.h>
 #include <getopt.h>
-#include "ws2812_rpi.h"
 #include <time.h>
+#include "ws2812_rpi.h"
+#include "zhelpers.h"
 
 /*
 // =================================================================================================
@@ -333,25 +334,49 @@ int main(int argc, char **argv)
 	// Init PWM generator and clear LED buffer
 	initHardware();
 	clearLEDBuffer();
+    
+        void *context = zmq_init (1);
+
+        //  Socket to talk to server
+        void *subscriber = zmq_socket (context, ZMQ_SUB);
+        zmq_connect (subscriber, "ipc:///tmp/frameQo");
+        zmq_setsockopt (subscriber, ZMQ_SUBSCRIBE, "", 0);
 
         //************** MAIN LOOP GOES HERE TO DO STUFF ***********************************************
-        aColor_t unionJack [256];
+        //aColor_t unionJack [256];
 
         //BGRA
-        uint32_t colT = 0xFFFF0000;       
-        aColor_t tmp;
-        tmp.a=0x00;
-        tmp.r=0x00;
-        tmp.g=0xFF;
-        tmp.b=0x00;      
-        while (1) {
- 
-           for (i = 0; i < 256; i++) {
-              unionJack[i] = *((aColor_t*) &colT);
-           }
+        //uint32_t colT = 0xFFFF0000;       
+        //aColor_t tmp;
+        //tmp.a=0x00;
+        //tmp.r=0x00;
+        //tmp.g=0xFF;
+        //tmp.b=0x00;      
+     
+        char *str;
+        char *str1;
+        aColor_t *rFrame;
+        int strLen;     
 
-           show_argb_matrix16x16( unionJack );
+        while (1) {
+           strLen = 0;
+           str = s_recv (subscriber);
+           
+           rFrame = ((aColor_t*)(&str[23]));
+           
+           //printf("print first pixel: %d  %d  %d  %d\n", rFrame->a, rFrame->r, rFrame->g, rFrame->b);
+
+ 
+           //for (i = 0; i < 256; i++) {
+           //   unionJack[i] = *((aColor_t*) &colT);
+           //}
+           //printf("Before Send Matrix...\n");
+           show_argb_matrix16x16( rFrame );
+           //printf("After Send matrix...\n");
+           free (str);
         }
+        zmq_close (subscriber);
+        zmq_term (context);
         printf("Done Loop....\n");
 
         //**********************************************************************************************

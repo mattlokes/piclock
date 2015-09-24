@@ -529,9 +529,9 @@ typedef struct {
 } Color_t;
 
 typedef struct {
-        unsigned char a;
+        unsigned char g;
 	unsigned char r;
-	unsigned char g;
+	unsigned char a;
 	unsigned char b;
 } aColor_t;
 
