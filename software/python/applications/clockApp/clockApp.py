@@ -33,7 +33,7 @@ class clockApp():
    todMode = 0
    
    frame = bytearray(1024)
-   timeColour = bytearray([0x00,0x00,0xFF,0x00])  #Default Colour
+   timeColour = bytearray([0x00,0xFF,0x00,0x00])  #Default Colour
    timeHistory=""
 
    def __init__(self, parent, **kwargs):
@@ -47,10 +47,10 @@ class clockApp():
       # Decode Incoming Cmd Packets
       # Colour Change Command
       if cmd['typ'] == "COLOR":
-         self.timeColour = bytearray([0x00,
-                                     int(cmd['dat'][4:6],16),  #R
+         self.timeColour = bytearray([int(cmd['dat'][4:6],16), #B
                                      int(cmd['dat'][2:4],16),  #G
-                                     int(cmd['dat'][0:2],16)]) #B
+                                     int(cmd['dat'][0:2],16),  #R
+                                     0x00])
          self.forceUpdate = True
       
       # Time Format Change
