@@ -7,5 +7,4 @@ python interfaces/wsInterface.py &
 python applications/snakeApp/snakeApp.py &
 python applications/clockApp/clockApp.py &
 python applications/colourTestApp/colourTestApp.py &
-#python interfaces/hwInterface.py
 interfaces/ledInterface &

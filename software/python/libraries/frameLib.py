@@ -92,10 +92,11 @@ class frameLib ():
    @staticmethod
    def ShiftFrameRight (frame ,shiftnum):
       for i in range(0,shiftnum):
-         frame.insert(0,[0x00,0x00,0x00])
-         frame.pop(256)
+         for i in range(0,4):frame.insert(0,0x00)
+         for i in range(0,4):frame.pop(1024)
          for r in range(0,16):
-            frame[(16*r)] = [0x00,0x00,0x00]
+            p = (4*16*r)
+            frame[p:p+4] = bytearray([0x00,0x00,0x00,0x00]) 
    
    @staticmethod
    def ShiftFrameUp (frame ,shiftnum):

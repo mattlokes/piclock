@@ -28,11 +28,16 @@ class clockApp():
    appPollTime = 0.05    #10Hz
    
    forceUpdate = False
+   forceTran = False
 
+   tranMode = "NONE"
    clockMode = "WORD"
    todMode = 0
    
    frame = bytearray(1024)
+   oldFrame = bytearray(1024)
+   tranBuffer = []
+
    timeColour = bytearray([0x00,0x51,0x00,0xFF])  #Default Colour
    timeHistory=""
 
@@ -66,6 +71,10 @@ class clockApp():
          
          self.forceUpdate = True
 
+      if cmd['typ'] == "TRAN":
+         self.tranMode = cmd['dat']
+         self.forceTran = True
+
    # Main Application Loop
    def appTick(self):
       #Update Time
@@ -73,13 +82,39 @@ class clockApp():
       get_m = datetime.datetime.now().time().minute
       timeHistoryCompare=str(get_h)+str(get_m)
 
-      if self.timeHistory != timeHistoryCompare or self.forceUpdate:
+      if self.timeHistory != timeHistoryCompare or self.forceUpdate or self.forceTran:
+         self.oldFrame = copy.deepcopy(self.frame)
          self.frame = bytearray(1024) 
          self.CreateTimeFrame(self.frame, get_h, get_m, self.clockMode, self.timeColour )
-         self.parent.framePush("DISP",self.frame)
+
+         if not self.forceUpdate: self.CreateTimeFrameTransition( self.oldFrame, self.frame, self.tranMode, self.tranBuffer )
+         else: self.tranBuffer.append( self.frame )
+
          self.timeHistory=timeHistoryCompare
          self.forceUpdate = False
+         self.forceTran = False
+ 
+      if len(self.tranBuffer) > 0:
+         self.parent.framePush("DISP",self.tranBuffer.pop(0))
    
+   def CreateTimeFrameTransition( self, oframe, nframe, tranMode, tranBuffer):
+      if tranMode == "NONE":
+         tranBuffer.append(nframe)
+      if tranMode == "HSLIDE":
+         for i in range(1,16):
+            frameLib.ShiftFrameLeft(oframe, 1)
+            tranBuffer.append(copy.deepcopy(oframe))
+         for i in range(1,16):
+            tmp = copy.deepcopy(nframe)
+            frameLib.ShiftFrameRight(tmp, 16-i)
+            tranBuffer.append(tmp)
+         tranBuffer.append(nframe)
+      if tranMode == "VSLIDE":
+         pass
+      if tranMode == "FADE":
+         pass
+
+
    def CreateTimeFrame(self, frame, hour, mins, mode, colour ):
       if mode == "WORD":
          self.CreateWordTimeFrame(frame, hour, mins, colour, self.todMode)
