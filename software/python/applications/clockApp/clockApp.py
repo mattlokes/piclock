@@ -33,7 +33,7 @@ class clockApp():
    todMode = 0
    
    frame = bytearray(1024)
-   timeColour = bytearray([0x00,0x00,0xFF,0x00])  #Default Colour
+   timeColour = bytearray([0x00,0x51,0x00,0xFF])  #Default Colour
    timeHistory=""
 
    def __init__(self, parent, **kwargs):
