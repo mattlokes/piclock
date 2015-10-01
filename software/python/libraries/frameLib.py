@@ -81,6 +81,11 @@ class frameLib ():
             pass #Silently Ignore
 
    @staticmethod
+   def DimLinearFrame (frame ,multi):
+      for i in range(0,1024):
+         if frame[i] != 0: frame[i] = int(frame[i]*multi)
+   
+   @staticmethod
    def ShiftFrameLeft (frame ,shiftnum):
       for i in range(0,shiftnum):
          for i in range(0,4):frame.pop(0)       #Remove 4 Bytes
@@ -101,17 +106,15 @@ class frameLib ():
    @staticmethod
    def ShiftFrameUp (frame ,shiftnum):
       for i in range(0,shiftnum):
-         for r in range(0,16): 
-            frame.pop(0)
-            frame.append([0x00,0x00,0x00])
+         for i in range(0,4*16):frame.append(0x00)
+         for i in range(0,4*16):frame.pop(0)       #Remove 4 Bytes
    
    @staticmethod
    def ShiftFrameDown (frame ,shiftnum):
       for i in range(0,shiftnum):
-         for r in range(0,16): 
-            frame.insert(0,[0x00,0x00,0x00])
-            frame.pop(256)
-
+         for i in range(0,4*16):frame.insert(0,0x00)
+         for i in range(0,4*16):frame.pop(1024)       #Remove 4 Bytes
+         
    @staticmethod 
    def CreateEqualizerFrame( frame , aChans) :
       if len(aChans) != 16:

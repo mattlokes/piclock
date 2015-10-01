@@ -110,9 +110,30 @@ class clockApp():
             tranBuffer.append(tmp)
          tranBuffer.append(nframe)
       if tranMode == "VSLIDE":
-         pass
+         for i in range(1,16):
+            frameLib.ShiftFrameUp(oframe, 1)
+            tranBuffer.append(copy.deepcopy(oframe))
+         for i in range(1,16):
+            tmp = copy.deepcopy(nframe)
+            frameLib.ShiftFrameDown(tmp, 16-i)
+            tranBuffer.append(tmp)
+         tranBuffer.append(nframe)
+     
       if tranMode == "FADE":
-         pass
+         speed = 20
+         step = 1.0/speed
+         
+         for i in range(0,speed):
+            tmp = copy.deepcopy(oframe)
+            frameLib.DimLinearFrame(tmp, (speed-i)*step )
+            tranBuffer.append(tmp)
+
+         for i in range(0,12): tranBuffer.append(bytearray(1024))
+ 
+         for i in range(0,speed):
+            tmp = copy.deepcopy(nframe)
+            frameLib.DimLinearFrame(tmp, i*step )
+            tranBuffer.append(tmp)
 
 
    def CreateTimeFrame(self, frame, hour, mins, mode, colour ):
