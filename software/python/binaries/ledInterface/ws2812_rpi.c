@@ -1236,7 +1236,7 @@ void show_argb_matrix16x16( aColor_t* frame) {
 	unsigned int wireBit = 0;			// Holds the current bit we will set in PWMWaveform
 
         uint32_t ledCnt = 0;
-	pixelPtr = frame;
+	pixelPtr = frame + 255;
 	dir = 0; // 0=Inc Ptr !0=Dec Ptr
 	for (i = 0; i < 16; i++) {
 		dir = i & 1; //If Odd Row, Buff Dec else Buff Inc
@@ -1268,11 +1268,11 @@ void show_argb_matrix16x16( aColor_t* frame) {
 			   } 
 		   }
                    ledCnt++;	
-                   if (dir) pixelPtr--;
-		   else     pixelPtr++;		
+                   if (dir) pixelPtr++;
+		   else     pixelPtr--;		
 		}
-		if (dir) pixelPtr +=17;
-		else     pixelPtr +=15;
+		if (dir) pixelPtr -=17;
+		else     pixelPtr -=15;
 	}
 	
 	// Copy PWM waveform to DMA's data buffer

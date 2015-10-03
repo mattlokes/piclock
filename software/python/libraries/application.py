@@ -115,7 +115,7 @@ class application():
 
    def __rxPoll(self, msg):
       # Format: DST#SRC#TYP#DATLEN#DAT
-      print msg[0]
+      #print msg[0]
       msgSplit = msg[0].split('#')
       cmd = {'dst': msgSplit[0], 'src': msgSplit[1], 
              'typ': msgSplit[2], 'len': msgSplit[3], 'dat': msgSplit[4]} 
