@@ -9,7 +9,7 @@ import os
 from libraries.frameLib import *
 from libraries.systemLib import *
 
-class termInterface():
+class termDisplay():
 
    ID="DISP"
    debugSys = False

@@ -10,7 +10,7 @@ import os
 from libraries.frameLib import *
 from libraries.systemLib import *
 
-class hwInterface():
+class pic32Display():
 
    ID="DISP"
    debugSys = False
