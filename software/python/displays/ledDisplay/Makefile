@@ -3,9 +3,9 @@ LDFLAGS=-lm
 ZMQFLAGS=-I/usr/local/include  -L/usr/local/lib -lczmq -lzmq
 UUIDFLAGS=-luuid
 
-all: bin/ledInterface
+all: bin/ledDisplay
 
 
-bin/ledInterface: ws2812_rpi.c ws2812_rpi.h main.c
+bin/ledDisplay: ws2812_rpi.c ws2812_rpi.h main.c
 	mkdir -p bin
 	gcc ${CFLAGS} ${LDFLAGS} ${ZMQFLAGS} ${UUIDFLAGS} $+ -o $@
