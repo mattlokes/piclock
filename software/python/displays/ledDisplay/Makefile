@@ -1,7 +1,7 @@
 CFLAGS=-g -O0 -Wall -Wformat
 LDFLAGS=-lm
 ZMQFLAGS=-I/usr/local/include  -L/usr/local/lib -lczmq -lzmq
-UUIDFLAGS=-luuid
+#UUIDFLAGS=-luuid
 
 all: bin/ledDisplay
 
