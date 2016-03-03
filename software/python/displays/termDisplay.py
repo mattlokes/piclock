@@ -85,7 +85,7 @@ if __name__ == "__main__":
        frameQ = sys.argv[3]
 
     ioloop.install()
-    app = termInterface( "ipc:///tmp/cmdQRx", "ipc:///tmp/cmdQTx" , "ipc:///tmp/frameQo")
+    app = termDisplay( "ipc:///tmp/cmdQRx", "ipc:///tmp/cmdQTx" , "ipc:///tmp/frameQo")
     signal.signal(signal.SIGINT, app.extkill)
     app.startup()
     ioloop.IOLoop.instance().start()

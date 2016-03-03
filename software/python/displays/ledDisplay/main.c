@@ -361,19 +361,17 @@ int main(int argc, char **argv)
         while (1) {
            strLen = 0;
            str = s_recv (subscriber);
-           
-           rFrame = ((aColor_t*)(&str[23]));
-           
-           //printf("print first pixel: %d  %d  %d  %d\n", rFrame->a, rFrame->r, rFrame->g, rFrame->b);
-
- 
-           //for (i = 0; i < 256; i++) {
-           //   unionJack[i] = *((aColor_t*) &colT);
-           //}
-           //printf("Before Send Matrix...\n");
-           show_argb_matrix16x16( rFrame );
-           //printf("After Send matrix...\n");
-           free (str);
+           if( str != NULL) {
+              //printf("Gotten Frame Init....\n");
+              rFrame = ((aColor_t*)(&str[23]));
+              //printf("print first pixel: %d  %d  %d  %d\n", rFrame->a, rFrame->r, rFrame->g, rFrame->b);
+              //printf("Before Send Matrix...\n");
+              show_argb_matrix16x16( rFrame );
+              //printf("After Send matrix...\n");
+              free (str);
+           } else {
+              printf("NULL Message\n");
+           }
         }
         zmq_close (subscriber);
         zmq_term (context);

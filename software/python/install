@@ -1,24 +1,13 @@
 apt-get install lighttpd
-#apt-get install libzmq3  #Ubuntu (Not avail on Raspberry Pi)
-apt-get install libzmq1   #Raspberry Pi
-apt-get install libzmq-dev
+apt-get install libzmq3  #Ubuntu (Not avail on Raspberry Pi)
+apt-get install libzmq3-dev
+apt-get install python-zmq
 apt-get install python-dev
 apt-get install python-pip
 apt-get install autoconf automake libtool
-pip install pyzmq
+#pip install pyzmq
 pip install tornado
 cd displays/ledDisplay
-
-wget https://github.com/zeromq/czmq/archive/v2.2.0.zip
-unzip v2.2.0.zip 
-cd czmq-2.2.0/
-./autogen.sh 
-./configure
-make
-make check
-make install
-ldconfig
-cd ..
 
 make
 cd ../..

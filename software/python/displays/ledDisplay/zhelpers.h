@@ -54,9 +54,10 @@ static char *
 s_recv (void *socket) {
     zmq_msg_t message;
     zmq_msg_init (&message);
-    if (zmq_recv (socket, &message, 0))
+    if (zmq_msg_recv (&message, socket, 0) == -1)
         return (NULL);
     int size = zmq_msg_size (&message);
+    //printf("S_RECV Frame Size: %d\n",size);
     char *string = malloc (size + 1);
     memcpy (string, zmq_msg_data (&message), size);
     zmq_msg_close (&message);
@@ -69,7 +70,7 @@ static int
 s_recv_size (void *socket, char *string) {
     zmq_msg_t message;
     zmq_msg_init (&message);
-    if (zmq_recv (socket, &message, 0))
+    if (zmq_msg_recv (&message, socket, 0))
         return (NULL);
     int size = zmq_msg_size (&message);
     printf("zhelper msg len: %d \n", size);
@@ -87,7 +88,7 @@ s_send (void *socket, char *string) {
     zmq_msg_t message;
     zmq_msg_init_size (&message, strlen (string));
     memcpy (zmq_msg_data (&message), string, strlen (string));
-    rc = zmq_send (socket, &message, 0);
+    rc = zmq_msg_send (&message, socket, 0);
     zmq_msg_close (&message);
     return (rc);
 }
@@ -99,7 +100,7 @@ s_sendmore (void *socket, char *string) {
     zmq_msg_t message;
     zmq_msg_init_size (&message, strlen (string));
     memcpy (zmq_msg_data (&message), string, strlen (string));
-    rc = zmq_send (socket, &message, ZMQ_SNDMORE);
+    rc = zmq_msg_send (&message, socket,  ZMQ_SNDMORE);
     zmq_msg_close (&message);
     return (rc);
 }
@@ -114,7 +115,7 @@ s_dump (void *socket)
         //  Process all parts of the message
         zmq_msg_t message;
         zmq_msg_init (&message);
-        zmq_recv (socket, &message, 0);
+        zmq_msg_recv (&message, socket, 0);
 
         //  Dump the message as text or binary
         char *data = zmq_msg_data (&message);
