@@ -1,10 +1,9 @@
 #!/bin/bash
-PYTHONPATH=`pwd`
-export PYTHONPATH
+export PYTHONPATH=`pwd`
 python framework/webserver/webServer.py &
-python framework/components/control.py config.json &
+python framework/components/control.py  &
 python interfaces/wsInterface.py &
 python applications/snakeApp/snakeApp.py &
 python applications/clockApp/clockApp.py &
 python applications/colourTestApp/colourTestApp.py &
-displays/ledDisplay.bin &
+python displays/ledDisplayStart.py &

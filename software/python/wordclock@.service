@@ -1,0 +1,10 @@
+[Unit]
+Description=Wordclock: %i Daemon  
+
+[Service]
+Type=simple
+Restart=always
+ExecStart=/bin/bash -c "export PYTHONPATH=/etc/wordclock; /usr/bin/python /etc/wordclock/enabled-components/%i.py"
+
+[Install]
+WantedBy=multi-user.target

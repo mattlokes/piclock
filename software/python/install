@@ -1,13 +1,88 @@
-apt-get install lighttpd
-apt-get install libzmq3  #Ubuntu (Not avail on Raspberry Pi)
-apt-get install libzmq3-dev
-apt-get install python-zmq
-apt-get install python-dev
-apt-get install python-pip
-apt-get install autoconf automake libtool
-#pip install pyzmq
-pip install tornado
-cd displays/ledDisplay
+#!/bin/bash
+######################################
+# Install All Package Dependancies
+######################################
 
-make
-cd ../..
+#apt-get install lighttpd
+#apt-get install libzmq3  #Ubuntu (Not avail on Raspberry Pi)
+#apt-get install libzmq3-dev
+#apt-get install python-zmq
+#apt-get install python-dev
+#apt-get install python-pip
+#apt-get install autoconf automake libtool
+##pip install pyzmq
+#pip install tornado
+#cd displays/ledDisplay
+
+#make
+#cd ../..
+
+################################################
+# Copy Scripts and configs to /etc/wordclock/
+################################################
+
+mkdir /etc/wordclock
+mkdir -p /etc/wordclock/displays/
+
+cp -r applications/ /etc/wordclock/
+cp -r framework/ /etc/wordclock/
+cp -r interfaces/ /etc/wordclock/
+cp -r libraries/ /etc/wordclock/
+cp -r notifiers/ /etc/wordclock/
+cp -r tools/ /etc/wordclock/
+cp -r run /etc/wordclock/
+cp displays/ledDisplayStart.py /etc/wordclock/displays/ledDisplayStart.py
+cp displays/ledDisplay/bin/ledDisplay /etc/wordclock/displays/ledDisplay
+
+# Gen Lighttpd.conf
+pushd /etc/wordclock/framework/webserver/
+cat lighttpd.conf.template | sed 's/\$\$\$\$\$\$/\/etc\/wordclock/' > lighttpd.conf
+popd
+
+
+################################################
+# Choose Enabled Wordclock Components
+################################################
+mkdir -p /etc/wordclock/enabled-components/
+
+# Framework Components
+ln -s /etc/wordclock/framework/webserver/webServer.py /etc/wordclock/enabled-components/webServer.py
+ln -s /etc/wordclock/framework/components/control.py /etc/wordclock/enabled-components/control.py
+ln -s /etc/wordclock/interfaces/wsInterface.py /etc/wordclock/enabled-components/wsInterface.py
+ln -s /etc/wordclock/displays/ledDisplayStart.py /etc/wordclock/enabled-components/ledDisplayStart.py
+
+# Application Components
+ln -s /etc/wordclock/applications/snakeApp/snakeApp.py /etc/wordclock/enabled-components/snakeApp.py
+ln -s /etc/wordclock/applications/clockApp/clockApp.py /etc/wordclock/enabled-components/clockApp.py
+ln -s /etc/wordclock/applications/colourTestApp/colourTestApp.py /etc/wordclock/enabled-components/colourTestApp.py
+
+################################################
+# Copy Systemd Service Files
+################################################
+
+cp wordclock\@.service /etc/systemd/system/
+
+################################################
+# Enable Service and Startup
+################################################
+
+#Enable at Boot
+systemctl enable wordclock@webServer
+systemctl enable wordclock@control
+systemctl enable wordclock@wsInterface
+systemctl enable wordclock@ledDisplayStart
+
+systemctl enable wordclock@clockApp
+systemctl enable wordclock@snakeApp
+systemctl enable wordclock@colourTestApp
+
+#Services Startup
+systemctl start wordclock@webServer
+systemctl start wordclock@control
+systemctl start wordclock@wsInterface
+systemctl start wordclock@ledDisplayStart
+
+systemctl start wordclock@clockApp
+systemctl start wordclock@snakeApp
+systemctl start wordclock@colourTestApp
+

@@ -139,7 +139,7 @@ if __name__ == "__main__":
        cmdQTx   = sys.argv[3]
        
     ioloop.install()
-    ctl = control( configJsonPath, cmdQRx, cmdQTx, adminQ )
+    ctl = control( " ", cmdQRx, cmdQTx, adminQ )
     signal.signal(signal.SIGINT, ctl.extkill)
     ctl.startup()
     print "AdminQ can be connected to at: {0}".format(adminQ)
