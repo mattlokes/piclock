@@ -60,29 +60,17 @@ ln -s /etc/wordclock/applications/colourTestApp/colourTestApp.py /etc/wordclock/
 # Copy Systemd Service Files
 ################################################
 
-cp wordclock\@.service /etc/systemd/system/
+cp config/wordclock\@.service /etc/systemd/system/
 
 ################################################
 # Enable Service and Startup
 ################################################
 
 #Enable at Boot
-systemctl enable wordclock@webServer
-systemctl enable wordclock@control
-systemctl enable wordclock@wsInterface
-systemctl enable wordclock@ledDisplayStart
-
-systemctl enable wordclock@clockApp
-systemctl enable wordclock@snakeApp
-systemctl enable wordclock@colourTestApp
+systemctl enable wordclock@webServer wordclock@control wordclock@wsInterface wordclock@ledDisplayStart
+systemctl enable wordclock@clockApp wordclock@snakeApp wordclock@colourTestApp
 
 #Services Startup
-systemctl start wordclock@webServer
-systemctl start wordclock@control
-systemctl start wordclock@wsInterface
-systemctl start wordclock@ledDisplayStart
-
-systemctl start wordclock@clockApp
-systemctl start wordclock@snakeApp
-systemctl start wordclock@colourTestApp
+systemctl start wordclock@webServer wordclock@control wordclock@wsInterface wordclock@ledDisplayStart
+systemctl start wordclock@clockApp wordclock@snakeAppwordclock@colourTestApp
 
