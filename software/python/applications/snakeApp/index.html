@@ -109,12 +109,29 @@ window.addEventListener("load", init, false);
 
 function init()
 { 
+  //Webpage Button Event Listeners
   $('#btnUp').click(function(){sendUp(); return false; });
   $('#btnDown').click(function(){sendDown(); return false; });
   $('#btnRight').click(function(){sendRight(); return false; });
   $('#btnLeft').click(function(){sendLeft(); return false; });
   $('#btnEnter').click(function(){sendEnter(); return false; });
   output = document.getElementById("output");
+
+  //Keyboard Press Event Listeners
+  document.addEventListener('keydown', function(event) {
+    if(event.keyCode == 37) {
+        sendLeft();
+    }
+    else if(event.keyCode == 39) {
+        sendRight();
+    }
+    else if(event.keyCode == 38) {
+        sendUp();
+    }
+    else if(event.keyCode == 40) {
+        sendDown();
+    }
+});
 
   //set wsUri to location.host
   wsUri = "ws://" + location.hostname + ":5005/ws";
