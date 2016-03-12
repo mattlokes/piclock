@@ -97,10 +97,20 @@ class application():
       self.state = "RUNNING"
       self.appTicker.start()
 
-   def sendStat(self, dst):
+   def returnStatus(self, dst):
       stat = "|{0}|{1}|".format(self.state, float(1/self.appPollTime) )
       self.cmdQueueTx.send("{0}#{1}#STATUS#{2}#{3}".format(dst,self.app.ID,
                                                            len(stat), stat))
+   def returnVariableState(self, dst):
+      if hasattr(self.app, 'variableState'):
+         vState = self.app.variableState()
+         for v in vState:
+            self.cmdQueueTx.send("{0}#{1}#STATE.{2}#{3}#{4}".format(dst,self.app.ID,
+                                                                    v['name'],
+                                                                    len(v['val']), v['val'] ))
+      else:
+         self.cmdQueueTx.send("{0}#{1}#STATE.NONE#1#0".format(dst,self.app.ID))
+
    def changeAppTick(self, tick):
       self.pause()
       if hasattr(self.app, 'appPollTime'):
@@ -121,13 +131,14 @@ class application():
              'typ': msgSplit[2], 'len': msgSplit[3], 'dat': msgSplit[4]} 
       self.sys.rxDebug(cmd)
          
-      if   cmd['typ'] == "PAUSE":   self.pause()
-      elif cmd['typ'] == "KILL" :   self.kill()
-      elif cmd['typ'] == "RESUME":  self.resume()
-      elif cmd['typ'] == "STATUS":  self.sendStat(cmd['src'])
-      elif cmd['typ'] == "APPTICK": self.changeAppTick(cmd['dat'])
-      elif cmd['typ'] == "REFRESH": self.app.forceUpdate = True
-      else:                         self.app.incomingRx(cmd)
+      if   cmd['typ'] == "PAUSE":    self.pause()
+      elif cmd['typ'] == "KILL" :    self.kill()
+      elif cmd['typ'] == "RESUME":   self.resume()
+      elif cmd['typ'] == "STATUS":   self.returnStatus(cmd['src'])
+      elif cmd['typ'] == "VARSTATE": self.returnVariableState(cmd['src'])
+      elif cmd['typ'] == "APPTICK":  self.changeAppTick(cmd['dat'])
+      elif cmd['typ'] == "REFRESH":  self.app.forceUpdate = True
+      else:                          self.app.incomingRx(cmd)
          
 
    # Main Application Loop

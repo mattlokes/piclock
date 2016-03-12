@@ -45,8 +45,22 @@ class clockApp():
       self.parent = parent
 
    def startup(self):
-      #frameLib.CreateBlankFrame(self.frame)
       self.forceUpdate = True
+
+   def variableState(self):
+      vState = []
+      vState.append( {'name': "MODE", 'val': self.clockMode} )
+      vState.append( {'name': "TRAN", 'val': self.tranMode} )
+
+      if   self.todMode == 1: tod = "SUFFIX"
+      elif self.todMode == 2: tod = "AMPM"
+      else                  : tod = "NONE"
+      vState.append( {'name': "TOD", 'val': tod} )
+
+      colourStr = ''.join('{:02x}'.format(x) for x in self.timeColour)[2:] 
+      vState.append( {'name': "COLOR", 'val': colourStr} )
+
+      return vState
 
    def incomingRx ( self, cmd ):
       # Decode Incoming Cmd Packets

@@ -47,14 +47,14 @@
         </div>
         <label for="mode" class="control-label input-group"></label>
         <div class="btn-group col-xs-9" data-toggle="buttons">
-          <label class="btn btn-default active">
-            <input type="radio" name="mode" id="mode_word" checked="">Word
+          <label id="mode_word" class="btn btn-default">
+            <input type="radio" name="mode"  checked="">Word
           </label>
-          <label class="btn btn-default">
-            <input type="radio" name="mode" id="mode_dig0">Digital
+          <label id="mode_dig0" class="btn btn-default">
+            <input type="radio" name="mode" >Digital
           </label>
-          <label class="btn btn-default">
-            <input type="radio" name="mode" id="mode_dig2">Big Digital
+          <label id="mode_dig2" class="btn btn-default">
+            <input type="radio" name="mode" >Big Digital
           </label>
         </div>
       </div>
@@ -65,7 +65,7 @@
           <p class="lead">Suffix Words*:</p>
         </div>
         <div class="col-xs-9">
-          <input type="checkbox" id="suffix" ></p>
+          <input type="checkbox" id="tod_suffix" ></p>
         </div>
       </div>
       <div><hr></div>
@@ -75,7 +75,7 @@
           <p class="lead">AM/PM*:</p>
         </div>
         <div class="col-xs-9">
-          <input type="checkbox" id="ampm" >
+          <input type="checkbox" id="tod_ampm" >
         </div>
       </div>
       <div><hr></div>
@@ -86,17 +86,17 @@
         </div>
         <label for="tran" class="control-label input-group"></label>
         <div class="btn-group col-xs-9" data-toggle="buttons">
-          <label class="btn btn-default active">
-            <input type="radio" name="tran" id="tran_none" checked="">None
+          <label id="tran_none" class="btn btn-default">
+            <input type="radio" name="tran" >None
           </label>
-          <label class="btn btn-default">
-            <input type="radio" name="tran" id="tran_hslide">HSlide
+          <label id="tran_hslide" class="btn btn-default">
+            <input type="radio" name="tran" >HSlide
           </label>
-          <label class="btn btn-default">
-            <input type="radio" name="tran" id="tran_vslide">VSlide
+          <label id="tran_vslide" class="btn btn-default">
+            <input type="radio" name="tran">VSlide
           </label>
-          <label class="btn btn-default">
-            <input type="radio" name="tran" id="tran_fade">Fade
+          <label id="tran_fade" class="btn btn-default">
+            <input type="radio" name="tran">Fade
           </label>
         </div>
       </div>
@@ -150,8 +150,8 @@ function setupGuiElements()
   colorPickerObj.setColor("#00ffff"); 
 
   //Setup BootstrapSwitches
-  $("#ampm").bootstrapSwitch();
-  $("#suffix").bootstrapSwitch();
+  $("#tod_ampm").bootstrapSwitch();
+  $("#tod_suffix").bootstrapSwitch();
 }
 
 function setupWebSocket()
@@ -185,12 +185,12 @@ function setupEventListeners()
   });
   
   // Mode Listeners
-  $( "input[id='mode_word']" ).change(   function() {  doSend("#CLOCK#MODE#WORD#");     });
-  $( "input[id='mode_dig0']" ).change(   function() {  doSend("#CLOCK#MODE#DIG0#");     });
-  $( "input[id='mode_dig2']" ).change(   function() {  doSend("#CLOCK#MODE#DIG2#");     });
+  $( "label#mode_word" ).change(   function() {  doSend("#CLOCK#MODE#WORD#");     });
+  $( "label#mode_dig0" ).change(   function() {  doSend("#CLOCK#MODE#DIG0#");     });
+  $( "label#mode_dig2" ).change(   function() {  doSend("#CLOCK#MODE#DIG2#");     });
 
   // Time of Day Listener
-  $('input[id="suffix"]').on('switchChange.bootstrapSwitch', 
+  $('input#tod_suffix').on('switchChange.bootstrapSwitch', 
      function(event, state) {
         if ( state ) {
            doSend("#CLOCK#TOD#SUFFIX#");
@@ -199,7 +199,7 @@ function setupEventListeners()
         }
   });
   
-  $('input[id="ampm"]').on('switchChange.bootstrapSwitch', 
+  $('input#tod_ampm').on('switchChange.bootstrapSwitch', 
      function(event, state) {
         if ( state ) {
            doSend("#CLOCK#TOD#AMPM#");
@@ -209,10 +209,29 @@ function setupEventListeners()
   });
 
   // Transistion Listeners
-  $( "input[id='tran_none']" ).change(   function() {  doSend("#CLOCK#TRAN#NONE#");     });
-  $( "input[id='tran_hslide']" ).change( function() {  doSend("#CLOCK#TRAN#HSLIDE#");   });
-  $( "input[id='tran_vslide']" ).change( function() {  doSend("#CLOCK#TRAN#VSLIDE#");   });
-  $( "input[id='tran_fade']" ).change(   function() {  doSend("#CLOCK#TRAN#FADE#");     });
+  $( "label#tran_none" ).change(   function() {  doSend("#CLOCK#TRAN#NONE#");     });
+  $( "label#tran_hslide" ).change( function() {  doSend("#CLOCK#TRAN#HSLIDE#");   });
+  $( "label#tran_vslide" ).change( function() {  doSend("#CLOCK#TRAN#VSLIDE#");   });
+  $( "label#tran_fade" ).change(   function() {  doSend("#CLOCK#TRAN#FADE#");     });
+}
+
+function stateUpdate( name, value )
+{
+   console.log( name +" -- "+value );
+   switch(name) {
+      case "MODE":
+         $( "label#mode_"+value.toLowerCase() ).addClass('active');
+         break;
+      case "TRAN":
+         $( "label#tran_"+value.toLowerCase() ).addClass('active');
+         break;
+      case "TOD":
+         $( "input#tod_"+value.toLowerCase() ).bootstrapSwitch('state', true);
+         break;
+      case "COLOR":
+         colorPickerObj.setColor("#"+value);
+         break;
+   }
 }
 
 function onOpen(evt) 
@@ -220,26 +239,22 @@ function onOpen(evt)
   //writeToScreen(myip); 
   doSend("#"+myip);
   doSend("#CONTROL#SWITCH#CLOCK#");
+  doSend("#CLOCK#VARSTATE#0#0");
 }  
 
 function onClose(evt) { }
 
 function onMessage(evt) 
 { 
-  if( (evt.data[0] == "(") &&
-      (evt.data[4] == ",") &&
-      (evt.data[8] == ")")) {
-    //Input Coord
-    var cur_yaw   = parseInt(evt.data.slice(1,4));
-    var cur_pitch = parseInt(evt.data.slice(5,8));
-    
-    document.getElementById('yaw').value      = cur_yaw;
-    document.getElementById('yawval').value   = cur_yaw;
-    document.getElementById('pitch').value    = cur_pitch;
-    document.getElementById('pitchval').value = cur_pitch;
-  }
-  //writeToScreen('<span style="color: blue;">RESPONSE: ' + evt.data+'</span>');
-  //websocket.close(); 
+    //console.log(evt.data);
+    var msg = evt.data.split('#');
+    // 0 = DST  1 = SRC  2 = TYPE 3 = LEN 4 = DAT
+    // console.log(msg);
+    if( msg[1] == "CLOCK"){
+       if( msg[2].indexOf("STATE.") > -1 ) { //Check if STATE. is in TYPE
+          stateUpdate( msg[2].split('.')[1], msg[4] );
+       }
+    }
 }
 
 function onError(evt) { writeToScreen('<span style="color: red;">ERROR:</span> ' + evt.data + " DISPLAY OFFLINE?"); } 

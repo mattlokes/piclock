@@ -11,6 +11,7 @@ import tornado.web
 import threading 
 import time
 import re
+from collections import deque
 
 from libraries.systemLib import *
 
@@ -19,7 +20,8 @@ class WSHandler( tornado.websocket.WebSocketHandler ):
    def __init__( self, *args, **kwargs ):
       super(WSHandler,self).__init__(*args, **kwargs)
 
-   def initialize( self, parent, debugSys, ID ):
+   def initialize( self, parent, debugSys, ID , txFifo ):
+      self.txFifo = txFifo
       self.parent = parent
       self.ID = ID
       self.sys = sysPrint(self.ID, debugSys)
@@ -27,9 +29,16 @@ class WSHandler( tornado.websocket.WebSocketHandler ):
    def check_origin( self, origin ):
       return True      
    
+   def checkTxFifo( self ):
+      if len(self.txFifo) > 0:
+         data = self.txFifo.popleft()
+         self.write_message(data[0])
+
    def open( self ):
       self.sys.info("New Connection"),
       self.write_message("WS_IFACE")
+      self.txChecker = ioloop.PeriodicCallback( self.checkTxFifo, 20)
+      self.txChecker.start()
     
    def on_message( self, message ):
       data = message
@@ -41,6 +50,7 @@ class WSHandler( tornado.websocket.WebSocketHandler ):
                                                       cmdParse.group(3) ) )
    def on_close( self ):
       self.sys.info("Connection Closed")
+      self.txChecker.stop()
 
 class wsInterface( threading.Thread ):
    
@@ -53,6 +63,8 @@ class wsInterface( threading.Thread ):
    # rxQueue = Rx Cmd Queue , (Always Pop)
 
    def __init__( self, cmdQueueRx, cmdQueueTx, **kwargs ):
+      self.txFifo = deque()
+
       self.cmdQueueRxPath = cmdQueueRx
       self.cmdQueueTxPath = cmdQueueTx
       
@@ -74,12 +86,13 @@ class wsInterface( threading.Thread ):
       self.sys.info("Initializing Application...")
 
    def __rxPoll ( self, msg):
-      print msg
+      #print msg
+      self.txFifo.append(msg)
    
    def startup( self ):
       self.sys.info("Starting Application...")
       self.application = tornado.web.Application([(r'/ws', WSHandler, 
-      { "parent": self, "debugSys": self.debugSys, "ID": self.ID }),])
+      { "parent": self, "debugSys": self.debugSys, "ID": self.ID, "txFifo": self.txFifo }),])
       self.http_server = tornado.httpserver.HTTPServer(self.application)
       self.http_server.listen(5005)
     #  threading.Timer(0.001, self.__tornadoStart).start() #Start Tornado frome seperate instance
