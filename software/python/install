@@ -1,76 +1,188 @@
 #!/bin/bash
+
+OPTIND=1         # Reset in case getopts has been used previously in the shell.
+
+INSTALL_PATH=/etc/wordclock
+
+DO_DEP_INSTALL=0
+DO_BASE_INSTALL=0
+DO_BASE_ENABLE=0
+DO_SYSTEMD_SERVICE_INSTALL=0
+DO_SYSTEMD_BOOT_ENABLE=0
+DO_SYSTEMD_START=0
+
+DO_NEWCOMP_INSTALL=0
+DO_NEWCOMP_ENABLE=0
+DO_NEWCOMP_START=0
+
+function show_help {
+   echo " Wordclock Framework Install Script "
+}
+
+
+
 ######################################
 # Install All Package Dependancies
 ######################################
 
-#apt-get install lighttpd
-#apt-get install libzmq3  #Ubuntu (Not avail on Raspberry Pi)
-#apt-get install libzmq3-dev
-#apt-get install python-zmq
-#apt-get install python-dev
-#apt-get install python-pip
-#apt-get install autoconf automake libtool
-##pip install pyzmq
-#pip install tornado
-#cd displays/ledDisplay
+function do_dep_install {
+   echo " ***** Installing Framework Dependancies ***** "
+   
+   apt-get install lighttpd
+   apt-get install libzmq3  #Ubuntu (Not avail on Raspberry Pi)
+   apt-get install libzmq3-dev
+   apt-get install python-zmq
+   apt-get install python-dev
+   apt-get install python-pip
+   apt-get install autoconf automake libtool
+   #pip install pyzmq
+   pip install tornado
+   cd displays/ledDisplay
 
-#make
-#cd ../..
+   make
+   cd ../..
+}
 
 ################################################
 # Copy Scripts and configs to /etc/wordclock/
 ################################################
 
-mkdir /etc/wordclock
-mkdir -p /etc/wordclock/displays/
+function do_base_install {
+   echo " ***** Copying Base System Framework to $INSTALL_PATH ***** "
+ 
+   mkdir /etc/wordclock
+   mkdir -p /etc/wordclock/displays/
+   
+   cp -r applications/ /etc/wordclock/
+   cp -r framework/ /etc/wordclock/
+   cp -r interfaces/ /etc/wordclock/
+   cp -r libraries/ /etc/wordclock/
+   cp -r notifiers/ /etc/wordclock/
+   cp -r tools/ /etc/wordclock/
+   cp -r run /etc/wordclock/
+   cp displays/ledDisplayStart.py /etc/wordclock/displays/ledDisplayStart.py
+   cp displays/ledDisplay/bin/ledDisplay /etc/wordclock/displays/ledDisplay
+   
+   # Gen Lighttpd.conf
+   pushd /etc/wordclock/framework/webserver/
+   cat lighttpd.conf.template | sed 's/\$\$\$\$\$\$/\/etc\/wordclock/' > lighttpd.conf
+   popd
 
-cp -r applications/ /etc/wordclock/
-cp -r framework/ /etc/wordclock/
-cp -r interfaces/ /etc/wordclock/
-cp -r libraries/ /etc/wordclock/
-cp -r notifiers/ /etc/wordclock/
-cp -r tools/ /etc/wordclock/
-cp -r run /etc/wordclock/
-cp displays/ledDisplayStart.py /etc/wordclock/displays/ledDisplayStart.py
-cp displays/ledDisplay/bin/ledDisplay /etc/wordclock/displays/ledDisplay
-
-# Gen Lighttpd.conf
-pushd /etc/wordclock/framework/webserver/
-cat lighttpd.conf.template | sed 's/\$\$\$\$\$\$/\/etc\/wordclock/' > lighttpd.conf
-popd
+   #Create enabled-components directory   
+   mkdir -p /etc/wordclock/enabled-components/
+}
 
 
 ################################################
-# Choose Enabled Wordclock Components
+# Enable Base Wordclock Components
 ################################################
-mkdir -p /etc/wordclock/enabled-components/
 
-# Framework Components
-ln -s /etc/wordclock/framework/webserver/webServer.py /etc/wordclock/enabled-components/webServer.py
-ln -s /etc/wordclock/framework/components/control.py /etc/wordclock/enabled-components/control.py
-ln -s /etc/wordclock/interfaces/wsInterface.py /etc/wordclock/enabled-components/wsInterface.py
-ln -s /etc/wordclock/displays/ledDisplayStart.py /etc/wordclock/enabled-components/ledDisplayStart.py
+function do_base_enable {
+   echo " ***** Enabling Base Components ***** "
 
-# Application Components
-ln -s /etc/wordclock/applications/snakeApp/snakeApp.py /etc/wordclock/enabled-components/snakeApp.py
-ln -s /etc/wordclock/applications/clockApp/clockApp.py /etc/wordclock/enabled-components/clockApp.py
-ln -s /etc/wordclock/applications/colourTestApp/colourTestApp.py /etc/wordclock/enabled-components/colourTestApp.py
+   # Framework Components
+   ln -s /etc/wordclock/framework/webserver/webServer.py /etc/wordclock/enabled-components/webServer.py
+   ln -s /etc/wordclock/framework/components/control.py /etc/wordclock/enabled-components/control.py
+   ln -s /etc/wordclock/interfaces/wsInterface.py /etc/wordclock/enabled-components/wsInterface.py
+   ln -s /etc/wordclock/displays/ledDisplayStart.py /etc/wordclock/enabled-components/ledDisplayStart.py
+   
+   # Application Components
+   ln -s /etc/wordclock/applications/snakeApp/snakeApp.py /etc/wordclock/enabled-components/snakeApp.py
+   ln -s /etc/wordclock/applications/clockApp/clockApp.py /etc/wordclock/enabled-components/clockApp.py
+   ln -s /etc/wordclock/applications/colourTestApp/colourTestApp.py /etc/wordclock/enabled-components/colourTestApp.py
+}
 
 ################################################
 # Copy Systemd Service Files
 ################################################
 
-cp config/wordclock\@.service /etc/systemd/system/
+function do_systemd_service_install {
+   echo " ***** Install Systemd Service File  ***** "
+
+   cp config/wordclock\@.service /etc/systemd/system/
+}
 
 ################################################
-# Enable Service and Startup
+# Enable Services to at Boot for Base
 ################################################
 
-#Enable at Boot
-systemctl enable wordclock@webServer wordclock@control wordclock@wsInterface wordclock@ledDisplayStart
-systemctl enable wordclock@clockApp wordclock@snakeApp wordclock@colourTestApp
+function do_systemd_boot_enable {
+   echo " ***** Enable Framework Systemd Services  ***** "
 
-#Services Startup
-systemctl start wordclock@webServer wordclock@control wordclock@wsInterface wordclock@ledDisplayStart
-systemctl start wordclock@clockApp wordclock@snakeAppwordclock@colourTestApp
+   systemctl enable wordclock@webServer wordclock@control wordclock@wsInterface wordclock@ledDisplayStart
+   systemctl enable wordclock@clockApp wordclock@snakeApp wordclock@colourTestApp
+}
+
+################################################
+# Manual Services Start
+################################################
+
+function do_systemd_start {
+   echo " ***** Stop Framework Systemd Services  ***** "
+
+   systemctl start wordclock@webServer wordclock@control wordclock@wsInterface wordclock@ledDisplayStart
+   systemctl start wordclock@clockApp wordclock@snakeAppwordclock@colourTestApp
+}
+
+################################################
+# Manual Services Stop
+################################################
+
+function do_systemd_stop {
+   echo " ***** Stop Framework Systemd Services  ***** "
+
+   systemctl stop wordclock@webServer wordclock@control wordclock@wsInterface wordclock@ledDisplayStart
+   systemctl stop wordclock@clockApp wordclock@snakeAppwordclock@colourTestApp
+}
+
+
+while getopts "h?pnua:" opt; do
+    case "$opt" in
+    # Show Script Help Message
+    h|\?)
+        show_help
+        exit 0
+        ;;
+    # Set Install Path to Arg
+    p)  
+        INSTALL_PATH=$OPTARG
+        ;;
+    # Update Installed Components
+    u)  
+        do_base_install
+        do_systemd_stop
+        sleep 2
+        do_systemd_start
+        ;;
+    # Install New none base python application
+    n)
+        NC_PATH=$OPTARG
+        if [ ! -d "$NC_PATH" ] ; then 
+           echo "New Component Path is needs to be a directory!!"
+           exit 0
+        fi
+ 
+        NC_INST_PATH=$INSTALL_PATH/$NC_PATH
+        NC_NAME=`basename $NC_PATH`
+
+        mkdir -p $NC_INST_PATH
+        cp -r $NC_PATH $NC_INST_PATH
+        ln -s $NC_INST_PATH/$NC_NAME.py $INSTALL_PATH/enabled-components/$NC_NAME.py
+        systemctl start wordclock@$NC_NAME
+        ;;
+    a)
+        do_dep_install
+        do_base_install
+        do_base_enable
+        do_systemd_service_install
+        do_systemd_boot_enable
+        do_systemd_start
+        ;;
+    esac
+done
+
+shift $((OPTIND-1))
+
+[ "$1" = "--" ] && shift
+
 
