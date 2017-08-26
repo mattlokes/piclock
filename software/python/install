@@ -29,7 +29,7 @@ function do_dep_install {
    echo " ***** Installing Framework Dependancies ***** "
    
    apt-get install lighttpd
-   apt-get install libzmq3  #Ubuntu (Not avail on Raspberry Pi)
+   #apt-get install libzmq3  #Ubuntu (Not avail on Raspberry Pi)
    apt-get install libzmq3-dev
    apt-get install python-zmq
    apt-get install python-dev
@@ -60,7 +60,7 @@ function do_base_install {
    cp -r notifiers/ /etc/wordclock/
    cp -r tools/ /etc/wordclock/
    cp -r run /etc/wordclock/
-   cp displays/ledDisplayStart.py /etc/wordclock/displays/ledDisplayStart.py
+   cp displays/ledDisplay/ledDisplay.py /etc/wordclock/displays/ledDisplay.py
    cp displays/ledDisplay/bin/ledDisplay /etc/wordclock/displays/ledDisplay
    
    # Gen Lighttpd.conf
@@ -84,7 +84,7 @@ function do_base_enable {
    ln -s /etc/wordclock/framework/webserver/webServer.py /etc/wordclock/enabled-components/webServer.py
    ln -s /etc/wordclock/framework/components/control.py /etc/wordclock/enabled-components/control.py
    ln -s /etc/wordclock/interfaces/wsInterface.py /etc/wordclock/enabled-components/wsInterface.py
-   ln -s /etc/wordclock/displays/ledDisplayStart.py /etc/wordclock/enabled-components/ledDisplayStart.py
+   ln -s /etc/wordclock/displays/ledDisplay.py /etc/wordclock/enabled-components/ledDisplay.py
    
    # Application Components
    ln -s /etc/wordclock/applications/snakeApp/snakeApp.py /etc/wordclock/enabled-components/snakeApp.py
@@ -109,7 +109,7 @@ function do_systemd_service_install {
 function do_systemd_boot_enable {
    echo " ***** Enable Framework Systemd Services  ***** "
 
-   systemctl enable wordclock@webServer wordclock@control wordclock@wsInterface wordclock@ledDisplayStart
+   systemctl enable wordclock@webServer wordclock@control wordclock@wsInterface wordclock@ledDisplay
    systemctl enable wordclock@clockApp wordclock@snakeApp wordclock@colourTestApp
 }
 
@@ -120,7 +120,7 @@ function do_systemd_boot_enable {
 function do_systemd_start {
    echo " ***** Stop Framework Systemd Services  ***** "
 
-   systemctl start wordclock@webServer wordclock@control wordclock@wsInterface wordclock@ledDisplayStart
+   systemctl start wordclock@webServer wordclock@control wordclock@wsInterface wordclock@ledDisplay
    systemctl start wordclock@clockApp wordclock@snakeAppwordclock@colourTestApp
 }
 
@@ -131,7 +131,7 @@ function do_systemd_start {
 function do_systemd_stop {
    echo " ***** Stop Framework Systemd Services  ***** "
 
-   systemctl stop wordclock@webServer wordclock@control wordclock@wsInterface wordclock@ledDisplayStart
+   systemctl stop wordclock@webServer wordclock@control wordclock@wsInterface wordclock@ledDisplay
    systemctl stop wordclock@clockApp wordclock@snakeAppwordclock@colourTestApp
 }
 

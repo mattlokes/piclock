@@ -1,7 +1,7 @@
 import os
 import subprocess
 
-class ledDisplayStart ():
+class ledDisplay ():
   
    def __init__( self ):
       pass 
@@ -14,5 +14,5 @@ class ledDisplayStart ():
       pass
 
 if __name__ == "__main__":
-    ledDisplay = ledDisplayStart()
+    ledDisplay = ledDisplay()
     ledDisplay.startup()

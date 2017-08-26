@@ -1,0 +1,110 @@
+<!doctype html>
+
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+
+  <title>webDisplay.py</title>
+  <meta name="description" content="The HTML5 Herald">
+  <meta name="author" content="SitePoint">
+</head>
+
+<body>
+<div id="content" style="width:100%;height:800px">
+   <div id="display" style="float:left;width:50%">
+      <canvas id="webDisp" width=600px height=600px style="border:1px solid #c3c3c3;"></canvas>
+   </div>
+   <div id ="control" style="float:right;width:50%;height:100%">
+      <iframe src="http://matt-vm.local" style="width:100%;height:100%;"></iframe>
+   </div>
+</div>
+
+
+
+  <script language="JavaScript">
+
+   var grid = [
+      ["Q","T","H","E","R","V","I","T","I","M","E","O","P","I","S","N"],
+      ["T","W","E","N","T","Y","U","T","E","N","A","F","I","V","E","U"],
+      ["E","I","G","H","T","P","F","O","U","R","K","U","T","W","O","Y"],
+      ["A","T","H","R","E","E","Z","O","N","E","W","S","E","V","E","N"],
+      ["L","Q","U","A","R","T","E","R","E","M","N","I","N","E","N","O"],
+      ["S","I","X","T","W","E","L","V","E","A","E","L","E","V","E","N"],
+      ["I","T","H","I","R","T","E","E","N","T","H","A","L","F","S","R"],
+      ["V","E","M","I","N","U","T","E","S","T","S","P","A","S","T","I"],
+      ["F","T","O","Y","O","N","E","V","E","T","W","E","L","V","E","M"],
+      ["T","H","R","E","E","L","C","S","E","V","E","N","I","N","E","Y"],
+      ["K","L","S","I","X","B","T","W","O","F","G","F","O","U","R","W"],
+      ["I","E","I","G","H","T","R","Z","E","L","E","V","E","N","S","V"],
+      ["N","A","F","I","V","E","C","O","E","T","E","N","Q","A","M","F"],
+      ["Y","I","N","B","A","T","H","E","R","E","V","E","N","I","N","G"],
+      ["P","M","T","A","F","T","E","R","N","O","O","N","W","V","C","E"],
+      ["M","O","R","N","I","N","G","U","M","I","D","N","I","G","H","T"],
+   ];
+
+   var canvas = document.getElementById("webDisp");
+   var ctx = canvas.getContext("2d");
+   
+   var canH = canvas.height;
+   var canW = canvas.width;
+   
+   var unit = canvas.height/20;
+   
+   function initDisp() {
+      ctx.fillStyle = "#000000";
+      ctx.fillRect(0,0,600,600);
+      ctx.font = "24px Arial";
+      ctx.fillStyle = "#202020";
+      ctx.textAlign = "center";
+      ctx.textBaseline = "middle"
+      
+      var i = 0;
+      var j = 0;
+      
+      var x0 = 2.5*unit;
+      for( i=0; i<16; i++) {
+         for ( j=0; j<16; j++ ){
+            ctx.fillText(grid[i][j], x0+(j*unit) ,x0+(i*unit));   
+         }
+      }
+   }
+
+   function drawDisp( frame ) {
+      ctx.fillStyle = "#000000";
+      ctx.fillRect(0,0,600,600);
+      ctx.textAlign = "center";
+      ctx.textBaseline = "middle"
+      ctx.font = "24px Arial";
+
+      var i = 0;
+      var j = 0;
+      
+      var x0 = 2.5*unit;
+      for( i=0; i<16; i++) {
+         for ( j=0; j<16; j++ ){
+            pxCol = '#' + frame.slice( 6*((i*16)+j), 6*((i*16)+j)+6 );
+            if (pxCol == '#000000') pxCol = '#202020'
+            ctx.fillStyle = pxCol  
+            console.log(ctx.fillStyle);
+            ctx.fillText(grid[i][j], x0+(j*unit) ,x0+(i*unit));   
+         }
+      }
+   }
+
+   function setupWebSocket() {
+      wsUri = "ws://" + location.hostname + ":8855/ws";
+      ws = new WebSocket(wsUri);
+      ws.onmessage = function(evt) { onMessage(evt) };
+   }
+
+   function onMessage(evt) {
+      drawDisp(evt.data);
+   }
+
+   initDisp();
+   setupWebSocket();
+
+
+  </script>
+</body>
+</html>

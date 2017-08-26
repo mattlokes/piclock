@@ -6,4 +6,6 @@ python interfaces/wsInterface.py &
 python applications/snakeApp/snakeApp.py &
 python applications/clockApp/clockApp.py &
 python applications/colourTestApp/colourTestApp.py &
-python displays/ledDisplayStart.py &
+#python displays/termDisplay/termDisplay.py &
+#python displays/ledDisplay/ledDisplay.py &
+python displays/webDisplay/webDisplay.py &
